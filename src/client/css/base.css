@@ -73,6 +73,18 @@
     font-style: italic;
 }
 
+/* base grid sections --------------------------------------------------*/
+.banner {
+    grid-area: banner;
+}
+
+main {
+    grid-area: main;
+}
+
+.nav{
+    grid-area: nav;
+}
 /* element CSS ------------------------------------------*/
 html {
     background-color: #0c2107;

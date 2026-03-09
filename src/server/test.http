@@ -1,0 +1,3 @@
+//get tests
+###
+GET https://cn483.brighton.domains/soundshare/src/server/api.php?chat=all
