@@ -5,11 +5,11 @@ window.addEventListener('load', function () {
     js_display_id.textContent = "User ID: " + user_id;
 
 
-    all_chats();
+    all_chats(user_id);
 
 });
 
-async function all_chats() {
+async function all_chats(user_id) {
     const url = 'https://cn483.brighton.domains/soundshare/src/server/api.php?chat=all';
 
     try {
@@ -18,43 +18,60 @@ async function all_chats() {
         const text = await response.text();
         const obj = JSON.parse(text);
 
-        for (const item of obj.chat) {
+        conversation_list(user_id, obj)
+        message_in_a_chat(user_id, obj)
 
-const dm_chat_id = item.dm_chat_id;
-const dm_chat_sender = item.dm_chat_sender;
-const dm_chat_receiver = item.dm_chat_receiver;
-const dm_chat_message = item.dm_chat_message;
-const dm_chat_timestamp = item.dm_chat_timestamp;
 
-            const div = document.createElement("div");
-            div.classList.add("chat-card");
-
-            // text
-            const id = document.createElement("p");
-            id.textContent = `Time Of chat: ${dm_chat_id}`;
-
-            const sender = document.createElement("p");
-            sender.textContent = `Sender: ${dm_chat_sender}`;
-
-            const receiver = document.createElement("p");
-            receiver.textContent = `Receiver: ${dm_chat_receiver}`;
-
-            const message = document.createElement("p");
-            message.textContent = `Message: ${dm_chat_message}`;
-
-            const time = document.createElement("p");
-            time.textContent = `Time: ${dm_chat_timestamp}`;
-
-            div.appendChild(id);
-            div.appendChild(sender);
-            div.appendChild(receiver);
-            div.appendChild(message);
-            div.appendChild(time);
-
-            document.getElementById("chat_list").appendChild(div);
-        }
 
     } catch (error) {
         console.log(error);
     }
 };
+
+//conversation list
+async function conversation_list(user_id, obj) {
+    const unique_chats = new Set();
+
+    for (const item of obj.chat) {
+        const dm_chat_sender = item.dm_chat_sender;
+
+        if (user_id != dm_chat_sender) {
+            unique_chats.add(dm_chat_sender);
+        }
+    }
+    console.log(unique_chats);
+
+    for (const x of unique_chats) {
+        const div = document.createElement("div");
+        div.classList.add("chat-card");
+        // text
+        const sender = document.createElement("button");
+        sender.textContent = `Sender: ${x}`;
+        sender.id = x;
+
+        div.appendChild(sender);
+
+        document.getElementById("chat_list").appendChild(div);
+    }
+
+};
+
+//output messages in chat box
+async function message_in_a_chat(user_id, obj) {
+    for (const item of obj.chat) {
+
+        const dm_chat_receiver = item.dm_chat_receiver;
+        const dm_chat_message = item.dm_chat_message;
+
+
+        const next_message = document.createElement("p");
+        if (dm_chat_receiver == user_id) {
+            next_message.classList.add("received");
+        }
+        else {
+            next_message.classList.add("sent");
+        }
+        next_message.textContent = `${dm_chat_message}`;
+        document.getElementById("chat").appendChild(next_message);
+    }
+}

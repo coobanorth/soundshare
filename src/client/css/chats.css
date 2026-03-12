@@ -21,7 +21,15 @@
     ;
 }
 
+/*sent message*/
+.sent{
+text-align: right;
+}
 
+/*recived message*/
+.received{
+text-align: left;
+}
 /*Temp CSS*/
 .chat_list {
     border: 5px;

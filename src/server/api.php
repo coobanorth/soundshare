@@ -65,7 +65,7 @@ class MyAPI
     //get all chats
     private function get_all_chats($mysqli)
     {
-        $sql = "SELECT * FROM dm_chats ORDER BY dm_chat_timestamp DESC";
+        $sql = "SELECT * FROM dm_chats ORDER BY dm_chat_timestamp ASC";
         $result = $mysqli->query($sql);
 
         $this->result_to_json($result);
