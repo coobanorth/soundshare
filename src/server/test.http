@@ -1,3 +1,12 @@
 //get tests
 ###
 GET https://cn483.brighton.domains/soundshare/src/server/api.php?chat=all
+
+###
+GET https://cn483.brighton.domains/soundshare/src/server/api.php?sender=1&receiver=3
+
+###
+GET https://cn483.brighton.domains/soundshare/src/server/api.php?sender=1
+
+###
+GET https://cn483.brighton.domains/soundshare/src/server/api.php?receiver=1

@@ -41,6 +41,8 @@ class MyAPI
 
         //handles gets
         elseif ($method === 'GET') {
+
+            //chat value
             if (isset($_GET["chat"])) {
                 $chat = $_GET["chat"];
 
@@ -55,6 +57,31 @@ class MyAPI
                 exit();
             }
 
+            //sender&reciever set
+            elseif (isset($_GET["sender"]) && isset($_GET["receiver"])) {
+                $sender = $_GET["sender"];
+                $receiver = $_GET["receiver"];
+
+                $this->get_SR_chat($mysqli, $sender, $receiver);
+                exit();
+            }
+
+            //sender set
+            elseif (isset($_GET["sender"])) {
+                $sender = $_GET["sender"];
+
+                $this->get_S_chat($mysqli, $sender);
+                exit();
+            }
+
+            //receiver set
+            elseif (isset($_GET["receiver"])) {
+                $receiver = $_GET["receiver"];
+
+                $this->get_R_chat($mysqli, $receiver);
+                exit();
+            }
+
             //if not specified throw error
             else {
                 http_response_code(400);
@@ -66,6 +93,30 @@ class MyAPI
     private function get_all_chats($mysqli)
     {
         $sql = "SELECT * FROM dm_chats ORDER BY dm_chat_timestamp ASC";
+        $result = $mysqli->query($sql);
+
+        $this->result_to_json($result);
+    }
+
+    //get chat based on sender and receiver
+    private function get_SR_chat($mysqli, $sender, $receiver){
+        $sql = "SELECT * FROM dm_chats WHERE (dm_chat_sender = $sender AND dm_chat_receiver = $receiver) OR (dm_chat_sender = $receiver AND dm_chat_receiver = $sender) ORDER BY dm_chat_timestamp ASC";
+        $result = $mysqli->query($sql);
+
+        $this->result_to_json($result);
+    }
+
+    //get chat based on sender
+    private function get_S_chat($mysqli, $sender){
+        $sql = "SELECT * FROM dm_chats WHERE dm_chat_sender = $sender ORDER BY dm_chat_timestamp ASC";
+        $result = $mysqli->query($sql);
+
+        $this->result_to_json($result);
+    }
+
+    //get chat based on receiver
+    private function get_R_chat($mysqli, $receiver){
+        $sql = "SELECT * FROM dm_chats WHERE dm_chat_receiver = $receiver ORDER BY dm_chat_timestamp ASC";
         $result = $mysqli->query($sql);
 
         $this->result_to_json($result);
