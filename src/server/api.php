@@ -36,7 +36,11 @@ class MyAPI
 
         //handles posts
         if ($method === 'POST') {
+            $message_to = $_POST["message_to"];
+            $message_from = $_POST["message_from"];
+            $message = $_POST["message"];
 
+            $this->send_message($message_to, $message_from, $message, $mysqli);
         }
 
         //handles gets
@@ -82,6 +86,15 @@ class MyAPI
                 exit();
             }
 
+            //get users name
+            elseif (isset($_GET["userid-name"])) {
+                $userid = $_GET["userid-name"];
+
+                $this->get_name_from_userid($mysqli, $userid);
+                exit();
+            }
+
+
             //if not specified throw error
             else {
                 http_response_code(400);
@@ -99,7 +112,8 @@ class MyAPI
     }
 
     //get chat based on sender and receiver
-    private function get_SR_chat($mysqli, $sender, $receiver){
+    private function get_SR_chat($mysqli, $sender, $receiver)
+    {
         $sql = "SELECT * FROM dm_chats WHERE (dm_chat_sender = $sender AND dm_chat_receiver = $receiver) OR (dm_chat_sender = $receiver AND dm_chat_receiver = $sender) ORDER BY dm_chat_timestamp ASC";
         $result = $mysqli->query($sql);
 
@@ -107,7 +121,8 @@ class MyAPI
     }
 
     //get chat based on sender
-    private function get_S_chat($mysqli, $sender){
+    private function get_S_chat($mysqli, $sender)
+    {
         $sql = "SELECT * FROM dm_chats WHERE dm_chat_sender = $sender ORDER BY dm_chat_timestamp ASC";
         $result = $mysqli->query($sql);
 
@@ -115,11 +130,20 @@ class MyAPI
     }
 
     //get chat based on receiver
-    private function get_R_chat($mysqli, $receiver){
+    private function get_R_chat($mysqli, $receiver)
+    {
         $sql = "SELECT * FROM dm_chats WHERE dm_chat_receiver = $receiver ORDER BY dm_chat_timestamp ASC";
         $result = $mysqli->query($sql);
 
         $this->result_to_json($result);
+    }
+
+    //get name based on userid
+    private function get_name_from_userid($mysqli, $userid){
+        $sql = "SELECT fname, lname FROM `users` WHERE user_id = $userid";
+        $result = $mysqli->query($sql);
+
+        $this->name_to_json($result);
     }
 
     private function result_to_json($result)
@@ -162,7 +186,84 @@ class MyAPI
         }
     }
 
+private function name_to_json($result)
+    {
+        //if there is a result
+        if ($result !== false) {
+            //check if there is more than 1 row
+            if ($result->num_rows > 0) {
+
+                //creates json object
+                $myObj = new stdClass();
+                //creates chat array
+                $name_array = array();
+
+                while ($row = $result->fetch_row()) {
+                    //creating each chat object
+                    $resultclass = new stdClass();
+                    //adding sql result array elements as parameters in the resultclass object
+                    $resultclass->fname = $row[0];
+                    $resultclass->lname = $row[1];
+                    //adding object to the messages_array array
+                    $name_array[] = $resultclass;
+                }
+
+                //setting chat parameter as the chat_array array
+                $myObj->name = $name_array;
+                $myJSON = json_encode($myObj, JSON_PRETTY_PRINT);
+                echo $myJSON;
+
+                //free memory from storing result set
+                $result->free_result();
+            } else {
+                http_response_code(204);
+            }
+        } else {
+            http_response_code(404);
+        }
+    }
+
+
+
+    //send message
+    private function send_message($message_to, $message_from, $message, $mysqli)
+    {
+        $message = trim($message);
+        $stmt = $mysqli->prepare(
+            "INSERT INTO dm_chats 
+        (dm_chat_sender, dm_chat_receiver, dm_chat_message)
+        VALUES (?, ?, ?)"
+        );
+
+        if (!$stmt) {
+            http_response_code(500);
+            return;
+        }
+
+        $stmt->bind_param(
+            "sss",
+            $message_from,
+            $message_to,
+            $message
+        );
+
+        if ($stmt->execute()) {
+            http_response_code(201);
+            echo json_encode(["status" => "success"]);
+        } else {
+            http_response_code(500);
+            echo json_encode(["status" => "error"]);
+        }
+
+        $stmt->close();
+    }
+
+
+
+
+
+
+
 }
 
 $soundshare_api = new MyAPI();
-?>
