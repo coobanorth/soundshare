@@ -116,9 +116,17 @@ async function message_in_a_chat(user_id, sender_id) {
         button.id = "send_button";
         button.textContent = "Send";
 
+        // Create audio record button
+        const rec_button = document.createElement("button");
+        rec_button.id = "rec_audio_toggle";
+        rec_button.textContent = "Record Audio";
+
+
         // Add elements to message box
         messageBox.appendChild(input);
         messageBox.appendChild(button);
+        messageBox.appendChild(rec_button);
+
 
         // Add click event
         button.addEventListener("click", () => {

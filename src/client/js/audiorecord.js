@@ -1,8 +1,12 @@
-document.getElementById("rec_audio_toggle").addEventListener("click", function () {
-  const messageBox = document.getElementById("message_box");
-  const rec_toggle = document.getElementById("rec_audio_toggle");
+const observer = new MutationObserver(() => {
+  const btn = document.getElementById("rec_audio_toggle");
 
-  messageBox.insertAdjacentHTML("beforeend", `
+  if (btn) {
+    btn.addEventListener("click", () => {
+      const messageBox = document.getElementById("message_box");
+      const rec_toggle = document.getElementById("rec_audio_toggle");
+
+      messageBox.insertAdjacentHTML("beforeend", `
         <section class="main-controls">
             <canvas class="visualizer" height="60px"></canvas>
             <div id="buttons">
@@ -14,8 +18,17 @@ document.getElementById("rec_audio_toggle").addEventListener("click", function (
         <section class="sound-clips">
         </section>
     `);
-  rec_toggle.disabled = true;
-  record_audio();
+      rec_toggle.disabled = true;
+      record_audio();
+    });
+
+    observer.disconnect(); // stop watching once found
+  }
+});
+
+observer.observe(document.body, {
+  childList: true,
+  subtree: true
 });
 
 function record_audio() {
@@ -83,7 +96,7 @@ function record_audio() {
         clipContainer.classList.add("clip");
         audio.setAttribute("controls", "");
         send.textContent = "SEND";
-        send.className = "send";
+        send.id = "send";
 
         if (clipName === null) {
           clipLabel.textContent = "My unnamed clip";
@@ -91,9 +104,16 @@ function record_audio() {
           clipLabel.textContent = clipName;
         }
 
+        //check if send button already exists
+        let send_exist = document.getElementById('send');
+
+        if (send_exist != null) {
+        } else {
+          clipContainer.appendChild(send);
+        }
+
         clipContainer.appendChild(audio);
         clipContainer.appendChild(clipLabel);
-        clipContainer.appendChild(send);
         soundClips.appendChild(clipContainer);
 
         audio.controls = true;
@@ -104,10 +124,9 @@ function record_audio() {
         console.log("recorder stopped");
 
         //send clip to db
-        send.onclick = function (e) {
+        send.onclick = function () {
           console.log("clip sent");
-          e.target.closest(".clip").remove();
-          location.reload();
+          document.querySelectorAll(".clip").forEach(clip => clip.remove());
         };
 
         clipLabel.onclick = function () {
