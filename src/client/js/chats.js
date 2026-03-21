@@ -1,3 +1,6 @@
+export let current_user = null;
+export let current_receiver = null;
+
 window.addEventListener('load', function () {
     let user_id = 1;
 
@@ -76,6 +79,9 @@ async function get_user_name(user_id) {
 
 //output messages in chat box
 async function message_in_a_chat(user_id, sender_id) {
+    current_user = user_id;
+    current_receiver = sender_id;
+
     const url = `https://cn483.brighton.domains/soundshare/src/server/api.php?sender=${sender_id}&receiver=${user_id}`;
 
     try {
@@ -143,6 +149,7 @@ async function message_in_a_chat(user_id, sender_id) {
     }
 }
 
+
 //send message method
 async function send_message(sender_id, user_id, message) {
     const message_to = sender_id;
@@ -173,5 +180,42 @@ async function send_message(sender_id, user_id, message) {
 
     } catch (error) {
         console.log(error);
+    }
+}
+
+//upload audio
+//upload audio
+export async function upload_audio(blob, current_user, current_receiver) {
+
+    const formData = new FormData();
+
+    formData.append("message_to", current_receiver);
+    formData.append("message_from", current_user);
+    formData.append("audio", blob, "recording.webm");
+
+    try {
+
+        const response = await fetch(
+            "https://cn483.brighton.domains/soundshare/src/server/api.php",
+            {
+                method: "POST",
+                body: formData
+            }
+        );
+
+        const text = await response.text();
+
+        if (!text || text.trim() === "") {
+            console.log("Empty response from API");
+            return;
+        }
+
+        const data = JSON.parse(text);
+        console.log("Upload success");
+
+        return data;
+
+    } catch (error) {
+        console.error("Upload error:", error);
     }
 }

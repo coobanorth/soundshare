@@ -36,11 +36,36 @@ class MyAPI
 
         //handles posts
         if ($method === 'POST') {
-            $message_to = $_POST["message_to"];
-            $message_from = $_POST["message_from"];
-            $message = $_POST["message"];
+            if (isset($_POST["message_to"]) && isset($_POST["message_from"]) && isset($_POST["message"])) {
+                $message_to = $_POST["message_to"];
+                $message_from = $_POST["message_from"];
+                $message = $_POST["message"];
 
-            $this->send_message($message_to, $message_from, $message, $mysqli);
+                $this->send_message($message_to, $message_from, $message, $mysqli);
+            } elseif (isset($_POST['message_to']) && isset($_POST['message_from']) && isset($_FILES['audio'])) {
+                $message_to = $_POST['message_to'];
+                $message_from = $_POST['message_from'];
+
+                $uploadDir = "uploads/audio/";
+
+                if (!file_exists($uploadDir)) {
+                    mkdir($uploadDir, 0777, true);
+                }
+
+                $fileName = time() . "_" . basename($_FILES["audio"]["name"]);
+                $filePath = $uploadDir . $fileName;
+
+                if (move_uploaded_file($_FILES["audio"]["tmp_name"], $filePath)) {
+
+                    $this->send_audio($message_to, $message_from, $filePath, $mysqli);
+
+                } else {
+                    http_response_code(500);
+                    echo json_encode(["status" => "file upload failed"]);
+                }
+
+                exit;
+            }
         }
 
         //handles gets
@@ -139,7 +164,8 @@ class MyAPI
     }
 
     //get name based on userid
-    private function get_name_from_userid($mysqli, $userid){
+    private function get_name_from_userid($mysqli, $userid)
+    {
         $sql = "SELECT fname, lname FROM `users` WHERE user_id = $userid";
         $result = $mysqli->query($sql);
 
@@ -186,7 +212,7 @@ class MyAPI
         }
     }
 
-private function name_to_json($result)
+    private function name_to_json($result)
     {
         //if there is a result
         if ($result !== false) {
@@ -253,6 +279,42 @@ private function name_to_json($result)
         } else {
             http_response_code(500);
             echo json_encode(["status" => "error"]);
+        }
+
+        $stmt->close();
+    }
+
+    //send message
+    private function send_audio($message_to, $message_from, $audio_path, $mysqli)
+    {
+        $stmt = $mysqli->prepare(
+            "INSERT INTO dm_audio 
+        (dm_audio_sender, dm_audio_receiver, dm_audio_audio)
+        VALUES (?, ?, ?)"
+        );
+
+        if (!$stmt) {
+            http_response_code(500);
+            echo json_encode(["status" => "db error"]);
+            return;
+        }
+
+        $stmt->bind_param(
+            "sss",
+            $message_from,
+            $message_to,
+            $audio_path
+        );
+
+        if ($stmt->execute()) {
+            http_response_code(201);
+            echo json_encode([
+                "status" => "success",
+                "path" => $audio_path
+            ]);
+        } else {
+            http_response_code(500);
+            echo json_encode(["status" => "insert failed"]);
         }
 
         $stmt->close();
