@@ -101,14 +101,24 @@ async function message_in_a_chat(user_id, sender_id) {
 
             const next_message = document.createElement("p");
 
-            if (item.dm_chat_sender == sender_id) {
-                next_message.classList.add("received");
-            } else {
-                next_message.classList.add("sent");
+            next_message.classList.add(
+                item.sender == sender_id ? "received" : "sent"
+            );
+
+            if (item.type === "chat") {
+                next_message.textContent = item.content;
             }
 
-            next_message.textContent = item.dm_chat_message;
+            if (item.type === "audio") {
+                next_message.innerHTML = `
+            <audio controls>
+                <source src="https://cn483.brighton.domains/soundshare/src/server/${item.content}" type="audio/mpeg">
+            </audio>
+        `;
+            }
+
             chatBox.appendChild(next_message);
+
         }
 
         // Create input

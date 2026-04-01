@@ -139,10 +139,38 @@ class MyAPI
     //get chat based on sender and receiver
     private function get_SR_chat($mysqli, $sender, $receiver)
     {
-        $sql = "SELECT * FROM dm_chats WHERE (dm_chat_sender = $sender AND dm_chat_receiver = $receiver) OR (dm_chat_sender = $receiver AND dm_chat_receiver = $sender) ORDER BY dm_chat_timestamp ASC";
+        $sql = "SELECT 
+    dm_chat_id AS id,
+    dm_chat_sender AS sender,
+    dm_chat_receiver AS receiver,
+    dm_chat_message AS content,
+    dm_chat_timestamp AS timestamp,
+    'chat' AS type
+FROM dm_chats
+WHERE 
+    (dm_chat_sender = $sender AND dm_chat_receiver = $receiver)
+    OR 
+    (dm_chat_sender = $receiver AND dm_chat_receiver = $sender)
+
+UNION ALL
+
+SELECT 
+    dm_audio_id AS id,
+    dm_audio_sender AS sender,
+    dm_audio_receiver AS receiver,
+    dm_audio_audio AS content,
+    dm_audio_timestamp AS timestamp,
+    'audio' AS type
+FROM dm_audio
+WHERE 
+    (dm_audio_sender = $sender AND dm_audio_receiver = $receiver)
+    OR 
+    (dm_audio_sender = $receiver AND dm_audio_receiver = $sender)
+
+ORDER BY timestamp ASC;";
         $result = $mysqli->query($sql);
 
-        $this->result_to_json($result);
+        $this->sr_result_to_json($result);
     }
 
     //get chat based on sender
@@ -191,8 +219,49 @@ class MyAPI
                     $resultclass->dm_chat_id = (int) $row[0];
                     $resultclass->dm_chat_sender = $row[1];
                     $resultclass->dm_chat_receiver = $row[2];
-                    $resultclass->dm_chat_message = $row[3];
+                    $resultclass->dm_chat_content = $row[3];
                     $resultclass->dm_chat_timestamp = $row[4];
+                    //adding object to the messages_array array
+                    $chat_array[] = $resultclass;
+                }
+
+                //setting chat parameter as the chat_array array
+                $myObj->chat = $chat_array;
+                $myJSON = json_encode($myObj, JSON_PRETTY_PRINT);
+                echo $myJSON;
+
+                //free memory from storing result set
+                $result->free_result();
+            } else {
+                http_response_code(204);
+            }
+        } else {
+            http_response_code(404);
+        }
+    }
+
+        private function sr_result_to_json($result)
+    {
+        //if there is a result
+        if ($result !== false) {
+            //check if there is more than 1 row
+            if ($result->num_rows > 0) {
+
+                //creates json object
+                $myObj = new stdClass();
+                //creates chat array
+                $chat_array = array();
+
+                while ($row = $result->fetch_row()) {
+                    //creating each chat object
+                    $resultclass = new stdClass();
+                    //adding sql result array elements as parameters in the resultclass object
+                    $resultclass->id = (int) $row[0];
+                    $resultclass->sender = $row[1];
+                    $resultclass->receiver = $row[2];
+                    $resultclass->content = $row[3];
+                    $resultclass->timestamp = $row[4];
+                    $resultclass->type = $row[5];
                     //adding object to the messages_array array
                     $chat_array[] = $resultclass;
                 }
