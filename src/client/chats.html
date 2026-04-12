@@ -3,7 +3,7 @@
 <head>
     <link href="css/base.css" rel="stylesheet">
     <link href="css/chats.css" rel="stylesheet">
-    </head>
+</head>
 
 <body>
     <div id="wrapper">
@@ -18,18 +18,21 @@
         </div>
 
         <main>
+            <form id="uid_form">
+                <label for="uid">Enter User ID:</label>
+                <input type="text" id="uid" name="uid">
+                <input type="submit" value="Submit" id="uid_submit">
+            </form>
             <h2 id="display_id"></h2>
         </main>
 
+        <div class="new_chat">
+        </div>
+
         <div class="chat_list">
-            <h3>Chat List</h3>
-            <div id="chat_list"></div>
         </div>
 
         <div class="conversation">
-            <h3>Conversation</h3>
-            <div id="chat"></div>
-            <div id="message_box"></div>
         </div>
 
     </div>

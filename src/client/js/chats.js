@@ -2,16 +2,44 @@ export let current_user = null;
 export let current_receiver = null;
 
 window.addEventListener('load', function () {
-    let user_id = 1;
+    let user_id = null;
 
     const js_display_id = document.getElementById("display_id");
     js_display_id.textContent = "User ID: " + user_id;
 
+});
+
+document.getElementById("uid_form").addEventListener("submit", function (event) {
+    event.preventDefault();
+
+    let user_id = document.getElementById("uid").value;
+
+    document.getElementById("display_id").textContent = user_id;
+
+    render_new_chat_form();
+    render_chat_ui();
+
     load_chats(user_id);
 });
 
+document.getElementById("new_chat_form").addEventListener("submit", function (event) {
+    event.preventDefault();
+
+    let user_id = document.getElementById("uid").value;
+    let nc_user_id = document.getElementById("nc_uid").value;
+
+    document.getElementById("chat_list").innerHTML = "";
+
+
+    const h4 = document.createElement("h4");
+    h4.textContent = "New Chat with User ID " + nc_user_id;
+    this.appendChild(h4);
+
+    new_chat(nc_user_id, user_id);
+});
+
 async function load_chats(user_id) {
-    const url = `https://cn483.brighton.domains/soundshare/src/server/api.php?receiver=${user_id}`;
+    const url = `https://cn483.brighton.domains/soundshare/src/server/api.php?user=${user_id}`;
 
     try {
 
@@ -31,32 +59,40 @@ async function conversation_list(user_id, obj) {
     const unique_chats = new Set();
 
     for (const item of obj.chat) {
-        const dm_chat_sender = item.dm_chat_sender;
+        const sender = item.dm_chat_sender;
+        const receiver = item.dm_chat_receiver;
 
-        if (user_id != dm_chat_sender) {
-            unique_chats.add(dm_chat_sender);
+        if (user_id == receiver) {
+            // someone messaged the user
+            unique_chats.add(sender);
+        } else if (user_id == sender) {
+            // user messaged someone (even if no reply)
+            unique_chats.add(receiver);
         }
     }
 
-    for (const x of unique_chats) {
-        const name = await get_user_name(x);
+    // Clear existing list (important if reloading)
+    const chatList = document.getElementById("chat_list");
+    chatList.innerHTML = "";
+
+    for (const chatUserId of unique_chats) {
+        const name = await get_user_name(chatUserId);
+
         const div = document.createElement("div");
         div.classList.add("chat-card");
-        // text
-        const sender = document.createElement("button");
-        sender.textContent = name;
-        sender.id = x;
 
-        sender.addEventListener("click", function () {
-            message_in_a_chat(user_id, this.id);
+        const button = document.createElement("button");
+        button.textContent = name;
+        button.id = chatUserId;
+
+        button.addEventListener("click", function () {
+            message_in_a_chat(user_id, chatUserId);
         });
 
-        div.appendChild(sender);
-
-        document.getElementById("chat_list").appendChild(div);
+        div.appendChild(button);
+        chatList.appendChild(div);
     }
-
-};
+}
 
 async function get_user_name(user_id) {
     const url = `https://cn483.brighton.domains/soundshare/src/server/api.php?userid-name=${user_id}`;
@@ -121,34 +157,7 @@ async function message_in_a_chat(user_id, sender_id) {
 
         }
 
-        // Create input
-        const input = document.createElement("input");
-        input.type = "text";
-        input.id = "message_input";
-        input.placeholder = "Type a message...";
-
-        // Create button
-        const button = document.createElement("button");
-        button.id = "send_button";
-        button.textContent = "Send";
-
-        // Create audio record button
-        const rec_button = document.createElement("button");
-        rec_button.id = "rec_audio_toggle";
-        rec_button.textContent = "Record Audio";
-
-
-        // Add elements to message box
-        messageBox.appendChild(input);
-        messageBox.appendChild(button);
-        messageBox.appendChild(rec_button);
-
-
-        // Add click event
-        button.addEventListener("click", () => {
-            const message = input.value;
-            send_message(sender_id, user_id, message);
-        });
+        user_sending_message(user_id, sender_id, messageBox)
 
 
         // scroll to newest message
@@ -159,6 +168,38 @@ async function message_in_a_chat(user_id, sender_id) {
     }
 }
 
+function user_sending_message(user_id, sender_id, messageBox) {
+    // Create input
+    const input = document.createElement("input");
+    input.type = "text";
+    input.id = "message_input";
+    input.placeholder = "Type a message...";
+
+    // Create button
+    const button = document.createElement("button");
+    button.id = "send_button";
+    button.textContent = "Send";
+
+    // Create audio record button
+    const rec_button = document.createElement("button");
+    rec_button.id = "rec_audio_toggle";
+    rec_button.textContent = "Record Audio";
+
+
+    // Add elements to message box
+    messageBox.appendChild(input);
+    messageBox.appendChild(button);
+    messageBox.appendChild(rec_button);
+
+
+    // Add click event
+    button.addEventListener("click", () => {
+        const message = input.value;
+        send_message(sender_id, user_id, message);
+
+    });
+
+};
 
 //send message method
 async function send_message(sender_id, user_id, message) {
@@ -186,7 +227,6 @@ async function send_message(sender_id, user_id, message) {
 
         }
         message_in_a_chat(user_id, sender_id);
-
 
     } catch (error) {
         console.log(error);
@@ -228,4 +268,99 @@ export async function upload_audio(blob, current_user, current_receiver) {
     } catch (error) {
         console.error("Upload error:", error);
     }
+}
+
+//new chat
+async function new_chat(nc_uid, user_id) {
+    const nc_div = document.querySelector(".new_chat");
+
+    const messageBox = document.createElement("div");
+    messageBox.id = "nc_message_box_" + nc_uid;
+
+    nc_div.appendChild(messageBox);
+
+    console.log(user_id + nc_uid);
+
+    user_sending_message(user_id, nc_uid, messageBox);
+}
+
+function render_new_chat_form() {
+    const container = document.querySelector(".new_chat");
+
+    container.innerHTML = "";
+
+
+    const title = document.createElement("h3");
+    title.textContent = "New Chat";
+
+
+    const form = document.createElement("form");
+    form.id = "new_chat_form";
+
+    const label = document.createElement("label");
+    label.setAttribute("for", "nc_uid");
+    label.textContent = "Enter the ID of the person you want to start a chat with:";
+
+
+    const input = document.createElement("input");
+    input.type = "text";
+    input.id = "nc_uid";
+    input.name = "nc_uid";
+
+
+    const submit = document.createElement("input");
+    submit.type = "submit";
+    submit.value = "Submit";
+    submit.id = "nc_uid_submit";
+
+
+    form.appendChild(label);
+    form.appendChild(input);
+    form.appendChild(submit);
+
+    container.appendChild(title);
+    container.appendChild(form);
+
+    form.addEventListener("submit", function (event) {
+        event.preventDefault();
+
+        const nc_uid = document.getElementById("nc_uid").value;
+        console.log("New chat with:", nc_uid);
+
+        new_chat(nc_uid);
+    });
+}
+
+function render_chat_ui() {
+    //chat list
+    const chatListContainer = document.querySelector(".chat_list");
+
+    chatListContainer.innerHTML = "";
+
+    const chatListTitle = document.createElement("h3");
+    chatListTitle.textContent = "Chat List";
+
+    const chatListDiv = document.createElement("div");
+    chatListDiv.id = "chat_list";
+
+    chatListContainer.appendChild(chatListTitle);
+    chatListContainer.appendChild(chatListDiv);
+
+    //conversation
+    const conversationContainer = document.querySelector(".conversation");
+
+    conversationContainer.innerHTML = "";
+
+    const conversationTitle = document.createElement("h3");
+    conversationTitle.textContent = "Conversation";
+
+    const chatDiv = document.createElement("div");
+    chatDiv.id = "chat";
+
+    const messageBox = document.createElement("div");
+    messageBox.id = "message_box";
+
+    conversationContainer.appendChild(conversationTitle);
+    conversationContainer.appendChild(chatDiv);
+    conversationContainer.appendChild(messageBox);
 }

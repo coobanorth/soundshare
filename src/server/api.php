@@ -111,6 +111,14 @@ class MyAPI
                 exit();
             }
 
+            //user set
+            elseif (isset($_GET["user"])) {
+                $user = $_GET["user"];
+
+                $this->get_user_chats($mysqli, $user);
+                exit();
+            }
+
             //get users name
             elseif (isset($_GET["userid-name"])) {
                 $userid = $_GET["userid-name"];
@@ -186,6 +194,14 @@ ORDER BY timestamp ASC;";
     private function get_R_chat($mysqli, $receiver)
     {
         $sql = "SELECT * FROM dm_chats WHERE dm_chat_receiver = $receiver ORDER BY dm_chat_timestamp ASC";
+        $result = $mysqli->query($sql);
+
+        $this->result_to_json($result);
+    }
+
+    //get all chats where user is sender or receiver
+    private function get_user_chats($mysqli, $user){
+        $sql = "SELECT * FROM dm_chats WHERE dm_chat_receiver = $user OR dm_chat_sender = $user ORDER BY dm_chat_timestamp ASC;";
         $result = $mysqli->query($sql);
 
         $this->result_to_json($result);
