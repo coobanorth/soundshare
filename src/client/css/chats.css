@@ -8,11 +8,15 @@
     grid-area: conversation;
 }
 
+.new_chat {
+    grid-area: new_chat;
+}
+
 #wrapper {
     max-width: 110em;
     margin: 0 auto;
     display: grid;
-    grid-template-columns: 6fr 3fr;
+    grid-template-columns: 3fr 6fr;
     grid-template-areas:
         "banner banner"
         "nav nav"
@@ -22,15 +26,6 @@
     ;
 }
 
-/*sent message*/
-.sent{
-text-align: right;
-}
-
-/*recived message*/
-.received{
-text-align: left;
-}
 /*Temp CSS*/
 .chat_list {
     border: 5px;
@@ -40,4 +35,61 @@ text-align: left;
 .conversation {
     border: 5px;
     border-style: solid;
+}
+
+#chat_list button {
+    color: black;
+}
+
+#chat div{
+    width: 100%;
+    display: inline-block;
+}
+
+#chat p{
+    border-color: darkgray;
+    border-width: 2px;
+    border-style: solid;
+    width: fit-content;
+    min-width: 3em;
+}
+
+#chat .sent p{
+    float: right;
+    text-align: right;
+    border-top-left-radius: 1em;
+    border-bottom-left-radius: 1em;
+    max-width: 45%;
+    padding: 1em 0.5em 1em 1em;
+}
+
+#chat .received p{
+    float: left;
+    text-align: left;
+    border-top-right-radius: 1em;
+    border-bottom-right-radius: 1em;
+    max-width: 45%;
+    padding: 1em 1em 1em 0.5em;
+}
+
+#chat audio{
+    border-color: darkgray;
+    border-width: 2px;
+    border-style: solid;
+}
+
+#chat .sent audio {
+    float: right;
+    border-top-left-radius: 1em;
+    border-bottom-left-radius: 1em;
+    max-width: 45%;
+    padding: 1em 0.5em 1em 1em;
+}
+
+#chat .received audio {
+    float: left;
+    border-top-right-radius: 1em;
+    border-bottom-right-radius: 1em;
+    max-width: 45%;
+    padding: 1em 1em 1em 0.5em;
 }

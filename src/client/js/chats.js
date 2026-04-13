@@ -135,14 +135,16 @@ async function message_in_a_chat(user_id, sender_id) {
 
         for (const item of obj.chat) {
 
-            const next_message = document.createElement("p");
+            const next_message = document.createElement("div");
 
             next_message.classList.add(
                 item.sender == sender_id ? "received" : "sent"
             );
 
             if (item.type === "chat") {
-                next_message.textContent = item.content;
+                const text = document.createElement("p");
+                text.textContent = item.content;
+                next_message.appendChild(text);
             }
 
             if (item.type === "audio") {
