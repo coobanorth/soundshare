@@ -1,39 +1,35 @@
-import { upload_audio, current_user, current_receiver } from "./chats.js";
+import { upload_audio } from "./chats.js";
 
-const observer = new MutationObserver(() => {
+export function init_audio_recorder(current_user, current_room) {
   const btn = document.getElementById("rec_audio_toggle");
 
-  if (btn) {
-    btn.addEventListener("click", () => {
-      const messageBox = document.getElementById("message_box");
-      const rec_toggle = document.getElementById("rec_audio_toggle");
-
-      messageBox.insertAdjacentHTML("beforeend", `
-        <section class="main-controls">
-            <canvas class="visualizer" height="60px"></canvas>
-            <div id="buttons">
-                <button class="record">Record</button>
-                <button class="stop">Stop</button>
-            </div>
-        </section>
-
-        <section class="sound-clips">
-        </section>
-    `);
-      rec_toggle.disabled = true;
-      record_audio();
-    });
-
-    observer.disconnect(); // stop watching once found
+  if (!btn) {
+    console.log("rec button not found");
+    return;
   }
-});
 
-observer.observe(document.body, {
-  childList: true,
-  subtree: true
-});
+  btn.addEventListener("click", () => {
+    const messageBox = document.getElementById("message_box");
 
-function record_audio() {
+    messageBox.insertAdjacentHTML("beforeend", `
+      <section class="main-controls">
+          <canvas class="visualizer" height="60px"></canvas>
+          <div id="buttons">
+              <button class="record">Record</button>
+              <button class="stop">Stop</button>
+          </div>
+      </section>
+
+      <section class="sound-clips"></section>
+    `);
+
+    btn.disabled = true;
+
+    record_audio(current_user, current_room);
+  });
+}
+
+function record_audio(current_user, current_room) {
   // Set up basic variables for app
   const record = document.querySelector(".record");
   const stop = document.querySelector(".stop");
@@ -105,7 +101,7 @@ function record_audio() {
 
         send.onclick = function () {
 
-          upload_audio(blob, current_user, current_receiver);
+          upload_audio(blob, current_user, current_room);
 
           console.log("clip sent");
 

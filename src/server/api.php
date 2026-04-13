@@ -36,14 +36,18 @@ class MyAPI
 
         //handles posts
         if ($method === 'POST') {
-            if (isset($_POST["message_to"]) && isset($_POST["message_from"]) && isset($_POST["message"])) {
-                $message_to = $_POST["message_to"];
+            if (isset($_POST["room_id"]) && isset($_POST["message_from"]) && isset($_POST["message"])) {
+                $room_id = $_POST["room_id"];
                 $message_from = $_POST["message_from"];
                 $message = $_POST["message"];
 
-                $this->send_message($message_to, $message_from, $message, $mysqli);
-            } elseif (isset($_POST['message_to']) && isset($_POST['message_from']) && isset($_FILES['audio'])) {
-                $message_to = $_POST['message_to'];
+                if (trim($_POST['message']) === '') {
+                    exit("Invalid message");
+                }
+
+                $this->send_message($room_id, $message_from, $message, $mysqli);
+            } elseif (isset($_POST['room_id']) && isset($_POST['message_from']) && isset($_FILES['audio'])) {
+                $room_id = $_POST['room_id'];
                 $message_from = $_POST['message_from'];
 
                 $uploadDir = "uploads/audio/";
@@ -57,7 +61,7 @@ class MyAPI
 
                 if (move_uploaded_file($_FILES["audio"]["tmp_name"], $filePath)) {
 
-                    $this->send_audio($message_to, $message_from, $filePath, $mysqli);
+                    $this->send_message($room_id, $message_from, $filePath, $mysqli);
 
                 } else {
                     http_response_code(500);
@@ -85,6 +89,30 @@ class MyAPI
                 http_response_code(400);
                 exit();
             }
+
+            //GET REQUEST FOR MESSAGES IN A ROOM
+            elseif (isset($_GET["room"])) {
+                $room_id = $_GET["room"];
+
+                $this->get_room_messages($mysqli, $room_id);
+            }
+
+            //GET REQUEST FOR ROOMS A USER IS IN
+            elseif (isset($_GET["user_room"])) {
+                $user_id = $_GET["user_room"];
+
+                $this->get_users_rooms($mysqli, $user_id);
+            }
+
+            //GET ROOM NAME
+            elseif (isset($_GET["room_name"])) {
+                $room_name = $_GET["room_name"];
+
+                $this->get_room_name($mysqli, $room_name);
+            }
+
+
+
 
             //sender&reciever set
             elseif (isset($_GET["sender"]) && isset($_GET["receiver"])) {
@@ -134,6 +162,12 @@ class MyAPI
             }
         }
     }
+
+
+
+
+
+
 
     //get all chats
     private function get_all_chats($mysqli)
@@ -200,7 +234,8 @@ ORDER BY timestamp ASC;";
     }
 
     //get all chats where user is sender or receiver
-    private function get_user_chats($mysqli, $user){
+    private function get_user_chats($mysqli, $user)
+    {
         $sql = "SELECT * FROM dm_chats WHERE dm_chat_receiver = $user OR dm_chat_sender = $user ORDER BY dm_chat_timestamp ASC;";
         $result = $mysqli->query($sql);
 
@@ -216,7 +251,74 @@ ORDER BY timestamp ASC;";
         $this->name_to_json($result);
     }
 
-    private function result_to_json($result)
+
+    //MESSAGES IN A ROOM
+    private function get_room_messages($mysqli, $room_id)
+    {
+        $sql = "SELECT * FROM messages WHERE room_id = $room_id ORDER BY message_timestamp ASC";
+        $result = $mysqli->query($sql);
+
+        $this->messages_to_json($result);
+    }
+
+    //ROOMS A USER IS IN
+    private function get_users_rooms($mysqli, $user_id)
+    {
+        $sql = "SELECT room_id FROM room_members WHERE user_id = $user_id";
+        $result = $mysqli->query($sql);
+
+        $this->users_rooms_to_json($result);
+    }
+
+    //ROOM NAME
+    private function get_room_name($mysqli, $room_id)
+    {
+        $sql = "SELECT room_name FROM chat_rooms WHERE room_id = $room_id";
+        $result = $mysqli->query($sql);
+
+        $this->room_name_to_json($result);
+    }
+
+
+
+
+    private function users_rooms_to_json($result)
+    {
+        //if there is a result
+        if ($result !== false) {
+            //check if there is more than 1 row
+            if ($result->num_rows > 0) {
+
+                //creates json object
+                $myObj = new stdClass();
+                //creates chat array
+                $rooms_array = array();
+
+                while ($row = $result->fetch_row()) {
+                    //creating each chat object
+                    $resultclass = new stdClass();
+                    //adding sql result array elements as parameters in the resultclass object
+                    $resultclass->room_id = (int) $row[0];
+                    //adding object to the messages_array array
+                    $rooms_array[] = $resultclass;
+                }
+
+                //setting chat parameter as the chat_array array
+                $myObj->rooms = $rooms_array;
+                $myJSON = json_encode($myObj, JSON_PRETTY_PRINT);
+                echo $myJSON;
+
+                //free memory from storing result set
+                $result->free_result();
+            } else {
+                http_response_code(204);
+            }
+        } else {
+            http_response_code(404);
+        }
+    }
+
+    private function messages_to_json($result)
     {
         //if there is a result
         if ($result !== false) {
@@ -232,17 +334,17 @@ ORDER BY timestamp ASC;";
                     //creating each chat object
                     $resultclass = new stdClass();
                     //adding sql result array elements as parameters in the resultclass object
-                    $resultclass->dm_chat_id = (int) $row[0];
-                    $resultclass->dm_chat_sender = $row[1];
-                    $resultclass->dm_chat_receiver = $row[2];
-                    $resultclass->dm_chat_content = $row[3];
-                    $resultclass->dm_chat_timestamp = $row[4];
+                    $resultclass->message_id = (int) $row[0];
+                    $resultclass->room_id = $row[1];
+                    $resultclass->message_sender = $row[2];
+                    $resultclass->contents = $row[3];
+                    $resultclass->message_timestamp = $row[4];
                     //adding object to the messages_array array
                     $chat_array[] = $resultclass;
                 }
 
                 //setting chat parameter as the chat_array array
-                $myObj->chat = $chat_array;
+                $myObj->messages = $chat_array;
                 $myJSON = json_encode($myObj, JSON_PRETTY_PRINT);
                 echo $myJSON;
 
@@ -256,7 +358,7 @@ ORDER BY timestamp ASC;";
         }
     }
 
-        private function sr_result_to_json($result)
+    private function sr_result_to_json($result)
     {
         //if there is a result
         if ($result !== false) {
@@ -297,7 +399,7 @@ ORDER BY timestamp ASC;";
         }
     }
 
-    private function name_to_json($result)
+    private function room_name_to_json($result)
     {
         //if there is a result
         if ($result !== false) {
@@ -313,14 +415,13 @@ ORDER BY timestamp ASC;";
                     //creating each chat object
                     $resultclass = new stdClass();
                     //adding sql result array elements as parameters in the resultclass object
-                    $resultclass->fname = $row[0];
-                    $resultclass->lname = $row[1];
+                    $resultclass->room_name = $row[0];
                     //adding object to the messages_array array
                     $name_array[] = $resultclass;
                 }
 
                 //setting chat parameter as the chat_array array
-                $myObj->name = $name_array;
+                $myObj->room_name = $name_array;
                 $myJSON = json_encode($myObj, JSON_PRETTY_PRINT);
                 echo $myJSON;
 
@@ -337,12 +438,12 @@ ORDER BY timestamp ASC;";
 
 
     //send message
-    private function send_message($message_to, $message_from, $message, $mysqli)
+    private function send_message($room_id, $message_from, $message, $mysqli)
     {
         $message = trim($message);
         $stmt = $mysqli->prepare(
-            "INSERT INTO dm_chats 
-        (dm_chat_sender, dm_chat_receiver, dm_chat_message)
+            "INSERT INTO messages 
+        (room_id, message_sender, contents)
         VALUES (?, ?, ?)"
         );
 
@@ -353,8 +454,8 @@ ORDER BY timestamp ASC;";
 
         $stmt->bind_param(
             "sss",
+            $room_id,
             $message_from,
-            $message_to,
             $message
         );
 
