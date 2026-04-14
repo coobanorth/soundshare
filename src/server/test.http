@@ -22,3 +22,23 @@ GET https://cn483.brighton.domains/soundshare/src/server/api.php?user_room=1
 
 ###
 GET https://cn483.brighton.domains/soundshare/src/server/api.php?room_name=1
+
+###
+GET https://cn483.brighton.domains/soundshare/src/server/api.php?get_users=1
+
+###
+POST https://cn483.brighton.domains/soundshare/src/server/api.cn483.brighton.domains/soundshare/src/server/api.php
+Content-Type: application/x-www-form-urlencoded
+
+action=create_room&room_name=Test&room_creator=1&users=2,3
+
+###
+POST https://cn483.brighton.domains/soundshare/src/server/api.cn483.brighton.domains/soundshare/src/server/api.php
+Content-Type: application/json
+
+{
+    "action": "create_room",
+    "room_name": "TestRoom",
+    "room_creator": "1",
+    "users": ["2", "3", "1"]
+}

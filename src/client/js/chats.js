@@ -12,6 +12,7 @@ document.getElementById("uid_form").addEventListener("submit", function (event) 
     event.preventDefault();
 
     let user_id = document.getElementById("uid").value;
+    window.user_id = user_id;
 
     document.getElementById("display_id").textContent = user_id;
 
@@ -125,6 +126,16 @@ async function messages_in_a_room(user_id, room_id) {
                 item.message_sender == user_id ? "sent" : "received"
             );
 
+            const message_box = document.createElement("div");
+            message_box.classList.add("message_box");
+
+            if (item.message_sender != user_id) {
+                const name = document.createElement("p");
+                name.classList.add("name");
+                name.textContent = item.sender_name;
+                message_box.appendChild(name);
+            }
+
             if (item.contents.startsWith("uploads/audio")) {
                 // audio message
                 const audio = document.createElement("audio");
@@ -135,15 +146,16 @@ async function messages_in_a_room(user_id, room_id) {
                 source.type = "audio/mpeg";
 
                 audio.appendChild(source);
-                next_message.appendChild(audio);
+                message_box.appendChild(audio);
 
             } else {
                 // text message
                 const text = document.createElement("p");
                 text.textContent = item.contents;
-                next_message.appendChild(text);
+                message_box.appendChild(text);
             }
 
+            next_message.appendChild(message_box)
             chatBox.appendChild(next_message);
         }
 
@@ -199,165 +211,164 @@ function user_sending_message(user_id, room_id, messageBox) {
 
 }
 
-    //send message method
-    async function send_message(room_id, user_id, message) {
-        const message_from = user_id;
+//send message method
+async function send_message(room_id, user_id, message) {
+    const message_from = user_id;
 
-        const formData = new FormData();
-        formData.append("room_id", room_id);
-        formData.append("message_from", message_from);
-        formData.append("message", message);
+    const formData = new FormData();
+    formData.append("room_id", room_id);
+    formData.append("message_from", message_from);
+    formData.append("message", message);
 
-        try {
-            const response = await fetch(
-                "https://cn483.brighton.domains/soundshare/src/server/api.php",
-                {
-                    method: "POST",
-                    body: formData
-                }
-            );
-
-            if (!response.ok) {
-                console.log("Failed to send message");
-            } else {
-                console.log("Message sent");
-
+    try {
+        const response = await fetch(
+            "https://cn483.brighton.domains/soundshare/src/server/api.php",
+            {
+                method: "POST",
+                body: formData
             }
-            messages_in_a_room(user_id, room_id);
+        );
 
-        } catch (error) {
-            console.log(error);
+        if (!response.ok) {
+            console.log("Failed to send message");
+        } else {
+            console.log("Message sent");
         }
+        messages_in_a_room(user_id, room_id);
+
+    } catch (error) {
+        console.log(error);
     }
+}
 
-    //upload audio
-    export async function upload_audio(blob, user_id, room_id) {
+//upload audio
+export async function upload_audio(blob, user_id, room_id) {
 
-        const formData = new FormData();
+    const formData = new FormData();
 
-        formData.append("room_id", room_id);
-        formData.append("message_from", user_id);
-        formData.append("audio", blob, "recording.webm");
+    formData.append("room_id", room_id);
+    formData.append("message_from", user_id);
+    formData.append("audio", blob, "recording.webm");
 
-        try {
+    try {
 
-            const response = await fetch(
-                "https://cn483.brighton.domains/soundshare/src/server/api.php",
-                {
-                    method: "POST",
-                    body: formData
-                }
-            );
-
-            const text = await response.text();
-
-            if (!text || text.trim() === "") {
-                console.log("Empty response from API");
-                return;
+        const response = await fetch(
+            "https://cn483.brighton.domains/soundshare/src/server/api.php",
+            {
+                method: "POST",
+                body: formData
             }
+        );
 
-            const data = JSON.parse(text);
-            console.log("Upload success");
+        const text = await response.text();
 
-            messages_in_a_room(user_id, room_id);
-            return data;
-
-        } catch (error) {
-            console.error("Upload error:", error);
+        if (!text || text.trim() === "") {
+            console.log("Empty response from API");
+            return;
         }
+
+        const data = JSON.parse(text);
+        console.log("Upload success");
+
+        messages_in_a_room(user_id, room_id);
+        return data;
+
+    } catch (error) {
+        console.error("Upload error:", error);
     }
+}
 
-    //new chat
-    async function new_chat(nc_uid, user_id) {
-        const nc_div = document.querySelector(".new_chat");
+//new chat
+async function new_chat(nc_uid, user_id) {
+    const nc_div = document.querySelector(".new_chat");
 
-        const messageBox = document.createElement("div");
-        messageBox.id = "nc_message_box_" + nc_uid;
+    const messageBox = document.createElement("div");
+    messageBox.id = "nc_message_box_" + nc_uid;
 
-        nc_div.appendChild(messageBox);
+    nc_div.appendChild(messageBox);
 
-        console.log(user_id + nc_uid);
+    console.log(user_id + nc_uid);
 
-        user_sending_message(user_id, nc_uid, messageBox);
-    }
+    user_sending_message(user_id, nc_uid, messageBox);
+}
 
-    function render_new_chat_form() {
-        const container = document.querySelector(".new_chat");
+function render_new_chat_form() {
+    const container = document.querySelector(".new_chat");
 
-        container.innerHTML = "";
-
-
-        const title = document.createElement("h3");
-        title.textContent = "New Chat";
+    container.innerHTML = "";
 
 
-        const form = document.createElement("form");
-        form.id = "new_chat_form";
-
-        const label = document.createElement("label");
-        label.setAttribute("for", "nc_uid");
-        label.textContent = "Enter the ID of the person you want to start a chat with:";
+    const title = document.createElement("h3");
+    title.textContent = "New Chat";
 
 
-        const input = document.createElement("input");
-        input.type = "text";
-        input.id = "nc_uid";
-        input.name = "nc_uid";
+    const form = document.createElement("form");
+    form.id = "new_chat_form";
+
+    const label = document.createElement("label");
+    label.setAttribute("for", "nc_uid");
+    label.textContent = "Enter the ID of the person you want to start a chat with:";
 
 
-        const submit = document.createElement("input");
-        submit.type = "submit";
-        submit.value = "Submit";
-        submit.id = "nc_uid_submit";
+    const input = document.createElement("input");
+    input.type = "text";
+    input.id = "nc_uid";
+    input.name = "nc_uid";
 
 
-        form.appendChild(label);
-        form.appendChild(input);
-        form.appendChild(submit);
+    const submit = document.createElement("input");
+    submit.type = "submit";
+    submit.value = "Submit";
+    submit.id = "nc_uid_submit";
 
-        container.appendChild(title);
-        container.appendChild(form);
 
-        form.addEventListener("submit", function (event) {
-            event.preventDefault();
+    form.appendChild(label);
+    form.appendChild(input);
+    form.appendChild(submit);
 
-            const nc_uid = document.getElementById("nc_uid").value;
-            console.log("New chat with:", nc_uid);
+    container.appendChild(title);
+    container.appendChild(form);
 
-            new_chat(nc_uid);
-        });
-    }
+    form.addEventListener("submit", function (event) {
+        event.preventDefault();
 
-    function render_chat_ui() {
-        //chat list
-        const chatListContainer = document.querySelector(".chat_list");
+        const nc_uid = document.getElementById("nc_uid").value;
+        console.log("New chat with:", nc_uid);
 
-        chatListContainer.innerHTML = "";
+        new_chat(nc_uid);
+    });
+}
 
-        const chatListTitle = document.createElement("h3");
-        chatListTitle.textContent = "Chat List";
+function render_chat_ui() {
+    //chat list
+    const chatListContainer = document.querySelector(".chat_list");
 
-        const chatListDiv = document.createElement("div");
-        chatListDiv.id = "chat_list";
+    chatListContainer.innerHTML = "";
 
-        chatListContainer.appendChild(chatListTitle);
-        chatListContainer.appendChild(chatListDiv);
+    const chatListTitle = document.createElement("h3");
+    chatListTitle.textContent = "Chat List";
 
-        //conversation
-        const conversationContainer = document.querySelector(".conversation");
+    const chatListDiv = document.createElement("div");
+    chatListDiv.id = "chat_list";
 
-        conversationContainer.innerHTML = "";
+    chatListContainer.appendChild(chatListTitle);
+    chatListContainer.appendChild(chatListDiv);
 
-        const conversationTitle = document.createElement("h3");
-        conversationTitle.textContent = "Conversation";
+    //conversation
+    const conversationContainer = document.querySelector(".conversation");
 
-        const chatDiv = document.createElement("div");
-        chatDiv.id = "chat";
+    conversationContainer.innerHTML = "";
 
-        const messageBox = document.createElement("div");
-        messageBox.id = "message_box";
+    const conversationTitle = document.createElement("h3");
+    conversationTitle.textContent = "Conversation";
 
-        conversationContainer.appendChild(conversationTitle);
-        conversationContainer.appendChild(chatDiv);
-        conversationContainer.appendChild(messageBox);
-    }
+    const chatDiv = document.createElement("div");
+    chatDiv.id = "chat";
+
+    const messageBox = document.createElement("div");
+    messageBox.id = "message_box";
+
+    conversationContainer.appendChild(conversationTitle);
+    conversationContainer.appendChild(chatDiv);
+    conversationContainer.appendChild(messageBox);
+}
