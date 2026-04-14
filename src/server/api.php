@@ -308,61 +308,74 @@ ORDER BY m.message_timestamp ASC;";
 
     //CREATE A NEW ROOM
     private function new_room($room_name, $room_creator, $users, $mysqli)
-    {
-        // 1. Create room
-        $stmt = $mysqli->prepare("
-        INSERT INTO chat_rooms (room_name, room_creator)
-        VALUES (?, ?)
-    ");
+{
+    $mysqli->begin_transaction();
 
-        if (!$stmt) {
-            http_response_code(500);
-            echo json_encode(["status" => "error", "message" => $mysqli->error]);
-            return;
-        }
+    try {
+
+        // 1. Create room
+        $stmt = $mysqli->prepare("INSERT INTO chat_rooms (room_name, room_creator) VALUES (?, ?)");
 
         $stmt->bind_param("ss", $room_name, $room_creator);
 
         if (!$stmt->execute()) {
-            http_response_code(500);
-            echo json_encode(["status" => "error", "message" => $stmt->error]);
-            return;
+            throw new Exception($stmt->error);
         }
 
         $room_id = $mysqli->insert_id;
         $stmt->close();
 
-        // 2. Add creator as member (option al but recommended)
-        $stmt = $mysqli->prepare("INSERT INTO room_members (room_id, user_id) VALUES (?, ?)");
-
-        if (!$stmt) {
-            http_response_code(500);
-            echo json_encode(["status" => "error", "message" => $mysqli->error]);
-            return;
+        // 2. Add members
+        if (!is_array($users)) {
+            $users = explode(",", $users);
         }
 
+        $stmt = $mysqli->prepare("INSERT INTO room_members (room_id, user_id) VALUES (?, ?)");
+
         foreach ($users as $user_id) {
+            $user_id = (int)$user_id;
             $stmt->bind_param("ii", $room_id, $user_id);
 
             if (!$stmt->execute()) {
-                http_response_code(500);
-                echo json_encode([
-                    "status" => "error",
-                    "message" => $stmt->error
-                ]);
-                return;
+                throw new Exception($stmt->error);
             }
         }
 
         $stmt->close();
 
-        // 3. success response
+        // 3. AUTO system message
+        $system_message = "Room created by user " . $room_creator;
+
+        $stmt = $mysqli->prepare("INSERT INTO messages (room_id, message_sender, contents) VALUES (?, ?, ?)");
+
+        $stmt->bind_param("iis", $room_id, $room_creator, $system_message);
+
+        if (!$stmt->execute()) {
+            throw new Exception($stmt->error);
+        }
+
+        $stmt->close();
+
+        // 4. Commit
+        $mysqli->commit();
+
         http_response_code(201);
         echo json_encode([
             "status" => "success",
             "room_id" => $room_id
         ]);
+
+    } catch (Exception $e) {
+
+        $mysqli->rollback();
+
+        http_response_code(500);
+        echo json_encode([
+            "status" => "error",
+            "message" => $e->getMessage()
+        ]);
     }
+}
 
     //GET USERS
     private function get_users($mysqli)

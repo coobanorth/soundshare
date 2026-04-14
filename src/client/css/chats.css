@@ -8,8 +8,8 @@
     grid-area: conversation;
 }
 
-.new_chat {
-    grid-area: new_chat;
+.new_room {
+    grid-area: new_room;
 }
 
 #wrapper {
@@ -21,7 +21,7 @@
         "banner banner"
         "nav nav"
         "main main"
-        "new_chat new_chat"
+        "new_room new_room"
         "chat_list conversation"
     ;
 }

@@ -1,4 +1,5 @@
 import { init_audio_recorder } from "./audiorecord.js";
+import { init_new_room} from "./createroom.js";
 
 window.addEventListener('load', function () {
     let user_id = null;
@@ -16,39 +17,22 @@ document.getElementById("uid_form").addEventListener("submit", function (event) 
 
     document.getElementById("display_id").textContent = user_id;
 
-    render_new_chat_form();
     render_chat_ui();
 
     load_rooms(user_id);
+    init_new_room(user_id);
 });
 
-document.getElementById("new_chat_form").addEventListener("submit", function (event) {
-    event.preventDefault();
-
-    let user_id = document.getElementById("uid").value;
-    let nc_user_id = document.getElementById("nc_uid").value;
-
-    document.getElementById("chat_list").innerHTML = "";
-
-
-    const h4 = document.createElement("h4");
-    h4.textContent = "New Chat with User ID " + nc_user_id;
-    this.appendChild(h4);
-
-    new_chat(nc_user_id, user_id);
-});
-
-//GETS THE ROOMS THAT THE USER IS IN
-async function load_rooms(user_id) {
+// GETS THE ROOMS THAT THE USER IS IN
+export async function load_rooms(user_id) {
     const url = `https://cn483.brighton.domains/soundshare/src/server/api.php?user_room=${user_id}`;
 
     try {
-
         const response = await fetch(url);
         const text = await response.text();
         const obj = JSON.parse(text);
 
-        display_rooms(user_id, obj)
+        display_rooms(user_id, obj);
 
     } catch (error) {
         console.log(error);
