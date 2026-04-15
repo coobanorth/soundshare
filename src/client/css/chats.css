@@ -13,10 +13,6 @@
 }
 
 #wrapper {
-    max-width: 110em;
-    margin: 0 auto;
-    display: grid;
-    grid-template-columns: 3fr 6fr;
     grid-template-areas:
         "banner banner"
         "nav nav"

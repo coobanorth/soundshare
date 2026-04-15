@@ -1,657 +1,400 @@
 <?php
 class MyAPI
 {
+    private $mysqli;
 
-    public $mysqli;
-
-    //construct method which is called when a new instance of the api is made
-    function __construct()
+    public function __construct()
     {
-        //sets sqli to throw an exception for errors instead of outputting error message
         mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
-        //sets HTTP header with JSON MIME type
-        header('content-type: application/json');
+        header('Content-Type: application/json');
+
         try {
-            //creates connection to database
-            $this->mysqli = new mysqli("165.227.235.122", "cn483_soundshare_admin", "soundshare_admin", "cn483_soundshare");
+            $this->mysqli = new mysqli(
+                "165.227.235.122",
+                "cn483_soundshare_admin",
+                "soundshare_admin",
+                "cn483_soundshare"
+            );
         } catch (Exception $e) {
-            //error code for failed database connection
             http_response_code(500);
-            exit();
-        }
-        //source_sql function with the users requested source and the mysqli connection
-        $this->handle_request($this->mysqli);
-    }
-
-    //destruct method which is called at the very end which closes the mysqli connection
-    function __destruct()
-    {
-        $this->mysqli->close();
-    }
-
-    public function handle_request($mysqli)
-    {
-        $method = $_SERVER['REQUEST_METHOD'];
-        //handles posts
-        if ($method === 'POST') {
-            //SEND MESSAGE
-            if (isset($_POST["room_id"]) && isset($_POST["message_from"]) && isset($_POST["message"])) {
-                $room_id = $_POST["room_id"];
-                $message_from = $_POST["message_from"];
-                $message = $_POST["message"];
-
-                if (trim($_POST['message']) === '') {
-                    exit("Invalid message");
-                }
-
-                $this->send_message($room_id, $message_from, $message, $mysqli);
-            }
-            //SEND RECORDED AUDIO
-            elseif (isset($_POST['room_id']) && isset($_POST['message_from']) && isset($_FILES['audio'])) {
-                $room_id = $_POST['room_id'];
-                $message_from = $_POST['message_from'];
-
-                $uploadDir = "uploads/audio/";
-
-                if (!file_exists($uploadDir)) {
-                    mkdir($uploadDir, 0777, true);
-                }
-
-                $fileName = time() . "_" . basename($_FILES["audio"]["name"]);
-                $filePath = $uploadDir . $fileName;
-
-                if (move_uploaded_file($_FILES["audio"]["tmp_name"], $filePath)) {
-
-                    $this->send_message($room_id, $message_from, $filePath, $mysqli);
-
-                } else {
-                    http_response_code(500);
-                    echo json_encode(["status" => "file upload failed"]);
-                }
-
-                exit;
-
-            }
-
-            //CREATE NEW CHAT ROOM
-            elseif (isset($_POST['action'])) {
-
-                $room_name = $_POST["room_name"];
-                $room_creator = $_POST["room_creator"];
-                $users = $_POST["users"];
-
-                $this->new_room($room_name, $room_creator, $users, $mysqli);
-            }
+            exit(json_encode(["error" => "Database connection failed"]));
         }
 
-        //handles gets
-        elseif ($method === 'GET') {
+        $this->handle_request();
+    }
 
-            //chat value
-            if (isset($_GET["chat"])) {
-                $chat = $_GET["chat"];
+    public function __destruct()
+    {
+        if ($this->mysqli) {
+            $this->mysqli->close();
+        }
+    }
 
-                // Check for the keyword 'all'
-                if ($chat === "all") {
-                    $this->get_all_chats($mysqli);
-                    exit();
-                }
+    private function handle_request()
+    {
+        switch ($_SERVER['REQUEST_METHOD']) {
 
-                // Invalid input
+            case 'POST':
+                $this->handle_post();
+                break;
+
+            case 'GET':
+                $this->handle_get();
+                break;
+
+            default:
+                http_response_code(405);
+        }
+    }
+
+    // ========================= POST =========================
+    private function handle_post()
+    {
+        // ACTION-BASED ROUTING
+        if (isset($_POST['action'])) {
+
+            switch ($_POST['action']) {
+
+                case 'create_room':
+                    $this->create_room(
+                        $_POST["room_name"],
+                        $_POST["room_creator"],
+                        $_POST["users"]
+                    );
+                    break;
+
+                case 'create_user':
+                    $this->create_user(
+                        $_POST["fname"],
+                        $_POST["lname"],
+                        $_POST["email"],
+                        $_POST["password"]
+                    );
+                    break;
+
+                case 'login':
+                    $this->login_user(
+                        $_POST["email"],
+                        $_POST["password"]
+                    );
+                    break;
+
+                default:
+                    http_response_code(400);
+                    echo json_encode(["error" => "Invalid action"]);
+            }
+
+            return;
+        }
+
+        // SEND TEXT MESSAGE
+        if (isset($_POST["room_id"], $_POST["message_from"], $_POST["message"])) {
+
+            $message = trim($_POST["message"]);
+            if ($message === '') {
                 http_response_code(400);
-                exit();
+                exit(json_encode(["error" => "Empty message"]));
             }
 
-            //GET REQUEST FOR MESSAGES IN A ROOM
-            elseif (isset($_GET["room"])) {
-                $room_id = $_GET["room"];
+            $this->send_message($_POST["room_id"], $_POST["message_from"], $message);
+        }
 
-                $this->get_room_messages($mysqli, $room_id);
+        // SEND AUDIO
+        elseif (isset($_POST['room_id'], $_POST['message_from'], $_FILES['audio'])) {
+
+            $uploadDir = "uploads/audio/";
+            if (!is_dir($uploadDir)) {
+                mkdir($uploadDir, 0777, true);
             }
 
-            //GET REQUEST FOR ROOMS A USER IS IN
-            elseif (isset($_GET["user_room"])) {
-                $user_id = $_GET["user_room"];
+            $fileName = time() . "_" . basename($_FILES["audio"]["name"]);
+            $filePath = $uploadDir . $fileName;
 
-                $this->get_users_rooms($mysqli, $user_id);
+            if (move_uploaded_file($_FILES["audio"]["tmp_name"], $filePath)) {
+                $this->send_message($_POST['room_id'], $_POST['message_from'], $filePath);
+            } else {
+                http_response_code(500);
+                echo json_encode(["error" => "Upload failed"]);
             }
-
-            //GET ROOM NAME
-            elseif (isset($_GET["room_name"])) {
-                $room_name = $_GET["room_name"];
-
-                $this->get_room_name($mysqli, $room_name);
-            }
-
-            //GET ALL USERS
-            elseif (isset($_GET["get_users"])) {
-                $this->get_users($mysqli);
-            }
-
-
-
-
-            //sender&reciever set
-            elseif (isset($_GET["sender"]) && isset($_GET["receiver"])) {
-                $sender = $_GET["sender"];
-                $receiver = $_GET["receiver"];
-
-                $this->get_SR_chat($mysqli, $sender, $receiver);
-                exit();
-            }
-
-            //sender set
-            elseif (isset($_GET["sender"])) {
-                $sender = $_GET["sender"];
-
-                $this->get_S_chat($mysqli, $sender);
-                exit();
-            }
-
-            //receiver set
-            elseif (isset($_GET["receiver"])) {
-                $receiver = $_GET["receiver"];
-
-                $this->get_R_chat($mysqli, $receiver);
-                exit();
-            }
-
-            //user set
-            elseif (isset($_GET["user"])) {
-                $user = $_GET["user"];
-
-                $this->get_user_chats($mysqli, $user);
-                exit();
-            }
-
-            //get users name
-            elseif (isset($_GET["userid-name"])) {
-                $userid = $_GET["userid-name"];
-
-                $this->get_name_from_userid($mysqli, $userid);
-                exit();
-            }
-
-
-            //if not specified throw error
-            else {
-                http_response_code(400);
-            }
+        } else {
+            http_response_code(400);
         }
     }
 
-
-
-
-
-
-
-    //get all chats
-    private function get_all_chats($mysqli)
+    // ========================= GET =========================
+    private function handle_get()
     {
-        $sql = "SELECT * FROM dm_chats ORDER BY dm_chat_timestamp ASC";
-        $result = $mysqli->query($sql);
-
-        $this->result_to_json($result);
-    }
-
-    //get chat based on sender and receiver
-    private function get_SR_chat($mysqli, $sender, $receiver)
-    {
-        $sql = "SELECT 
-    dm_chat_id AS id,
-    dm_chat_sender AS sender,
-    dm_chat_receiver AS receiver,
-    dm_chat_message AS content,
-    dm_chat_timestamp AS timestamp,
-    'chat' AS type
-FROM dm_chats
-WHERE 
-    (dm_chat_sender = $sender AND dm_chat_receiver = $receiver)
-    OR 
-    (dm_chat_sender = $receiver AND dm_chat_receiver = $sender)
-
-UNION ALL
-
-SELECT 
-    dm_audio_id AS id,
-    dm_audio_sender AS sender,
-    dm_audio_receiver AS receiver,
-    dm_audio_audio AS content,
-    dm_audio_timestamp AS timestamp,
-    'audio' AS type
-FROM dm_audio
-WHERE 
-    (dm_audio_sender = $sender AND dm_audio_receiver = $receiver)
-    OR 
-    (dm_audio_sender = $receiver AND dm_audio_receiver = $sender)
-
-ORDER BY timestamp ASC;";
-        $result = $mysqli->query($sql);
-
-        $this->sr_result_to_json($result);
-    }
-
-    //get chat based on sender
-    private function get_S_chat($mysqli, $sender)
-    {
-        $sql = "SELECT * FROM dm_chats WHERE dm_chat_sender = $sender ORDER BY dm_chat_timestamp ASC";
-        $result = $mysqli->query($sql);
-
-        $this->result_to_json($result);
-    }
-
-    //get chat based on receiver
-    private function get_R_chat($mysqli, $receiver)
-    {
-        $sql = "SELECT * FROM dm_chats WHERE dm_chat_receiver = $receiver ORDER BY dm_chat_timestamp ASC";
-        $result = $mysqli->query($sql);
-
-        $this->result_to_json($result);
-    }
-
-    //get all chats where user is sender or receiver
-    private function get_user_chats($mysqli, $user)
-    {
-        $sql = "SELECT * FROM dm_chats WHERE dm_chat_receiver = $user OR dm_chat_sender = $user ORDER BY dm_chat_timestamp ASC;";
-        $result = $mysqli->query($sql);
-
-        $this->result_to_json($result);
-    }
-
-    //get name based on userid
-    private function get_name_from_userid($mysqli, $userid)
-    {
-        $sql = "SELECT fname, lname FROM `users` WHERE user_id = $userid";
-        $result = $mysqli->query($sql);
-
-        $this->name_to_json($result);
-    }
-
-
-    //MESSAGES IN A ROOM
-    private function get_room_messages($mysqli, $room_id)
-    {
-        $sql = "SELECT 
-    m.message_id,
-    m.room_id,
-    m.message_sender,
-    CONCAT(u.fname, ' ', u.lname) AS sender_name,
-    m.contents,
-    m.message_timestamp
-FROM messages m
-JOIN users u ON m.message_sender = u.user_id
-WHERE m.room_id = $room_id
-ORDER BY m.message_timestamp ASC;";
-        $result = $mysqli->query($sql);
-
-        $this->messages_to_json($result);
-    }
-
-    //ROOMS A USER IS IN
-    private function get_users_rooms($mysqli, $user_id)
-    {
-        $sql = "SELECT room_id FROM room_members WHERE user_id = $user_id";
-        $result = $mysqli->query($sql);
-
-        $this->users_rooms_to_json($result);
-    }
-
-    //ROOM NAME
-    private function get_room_name($mysqli, $room_id)
-    {
-        $sql = "SELECT room_name FROM chat_rooms WHERE room_id = $room_id";
-        $result = $mysqli->query($sql);
-
-        $this->room_name_to_json($result);
-    }
-
-    //CREATE A NEW ROOM
-    private function new_room($room_name, $room_creator, $users, $mysqli)
-{
-    $mysqli->begin_transaction();
-
-    try {
-
-        // 1. Create room
-        $stmt = $mysqli->prepare("INSERT INTO chat_rooms (room_name, room_creator) VALUES (?, ?)");
-
-        $stmt->bind_param("ss", $room_name, $room_creator);
-
-        if (!$stmt->execute()) {
-            throw new Exception($stmt->error);
+        if (isset($_GET["room"])) {
+            $this->get_room_messages($_GET["room"]);
+        } elseif (isset($_GET["user_room"])) {
+            $this->get_user_rooms($_GET["user_room"]);
+        } elseif (isset($_GET["room_name"])) {
+            $this->get_room_name($_GET["room_name"]);
+        } elseif (isset($_GET["get_users"])) {
+            $this->get_users();
+        } elseif (isset($_GET["userid-name"])) {
+            $this->get_user_name($_GET["userid-name"]);
+        } else {
+            http_response_code(400);
         }
+    }
 
-        $room_id = $mysqli->insert_id;
-        $stmt->close();
+    // ========================= CORE METHODS =========================
 
-        // 2. Add members
-        if (!is_array($users)) {
-            $users = explode(",", $users);
-        }
+    private function send_message($room_id, $sender, $message)
+    {
+        $stmt = $this->mysqli->prepare(
+            "INSERT INTO messages (room_id, message_sender, contents)
+            VALUES (?, ?, ?)"
+        );
 
-        $stmt = $mysqli->prepare("INSERT INTO room_members (room_id, user_id) VALUES (?, ?)");
-
-        foreach ($users as $user_id) {
-            $user_id = (int)$user_id;
-            $stmt->bind_param("ii", $room_id, $user_id);
-
-            if (!$stmt->execute()) {
-                throw new Exception($stmt->error);
-            }
-        }
-
-        $stmt->close();
-
-        // 3. AUTO system message
-        $system_message = "Room created by user " . $room_creator;
-
-        $stmt = $mysqli->prepare("INSERT INTO messages (room_id, message_sender, contents) VALUES (?, ?, ?)");
-
-        $stmt->bind_param("iis", $room_id, $room_creator, $system_message);
-
-        if (!$stmt->execute()) {
-            throw new Exception($stmt->error);
-        }
-
-        $stmt->close();
-
-        // 4. Commit
-        $mysqli->commit();
+        $stmt->bind_param("iis", $room_id, $sender, $message);
+        $stmt->execute();
 
         http_response_code(201);
-        echo json_encode([
-            "status" => "success",
-            "room_id" => $room_id
-        ]);
-
-    } catch (Exception $e) {
-
-        $mysqli->rollback();
-
-        http_response_code(500);
-        echo json_encode([
-            "status" => "error",
-            "message" => $e->getMessage()
-        ]);
-    }
-}
-
-    //GET USERS
-    private function get_users($mysqli)
-    {
-        $sql = "SELECT user_id, fname, lname FROM users";
-        $result = $mysqli->query($sql);
-
-        //if there is a result
-        if ($result !== false) {
-            //check if there is more than 1 row
-            if ($result->num_rows > 0) {
-
-                //creates json object
-                $myObj = new stdClass();
-                //creates chat array
-                $users = array();
-
-                while ($row = $result->fetch_row()) {
-                    //creating each chat object
-                    $resultclass = new stdClass();
-                    //adding sql result array elements as parameters in the resultclass object
-                    $resultclass->user_id = (int) $row[0];
-                    $resultclass->fname = $row[1];
-                    $resultclass->lname = $row[2];
-                    //adding object to the messages_array array
-                    $users[] = $resultclass;
-                }
-
-                //setting chat parameter as the chat_array array
-                $myObj->users = $users;
-                $myJSON = json_encode($myObj, JSON_PRETTY_PRINT);
-                echo $myJSON;
-
-                //free memory from storing result set
-                $result->free_result();
-            } else {
-                http_response_code(204);
-            }
-        } else {
-            http_response_code(404);
-        }
+        echo json_encode(["status" => "success"]);
     }
 
-
-
-    private function users_rooms_to_json($result)
+    private function get_room_messages($room_id)
     {
-        //if there is a result
-        if ($result !== false) {
-            //check if there is more than 1 row
-            if ($result->num_rows > 0) {
-
-                //creates json object
-                $myObj = new stdClass();
-                //creates chat array
-                $rooms_array = array();
-
-                while ($row = $result->fetch_row()) {
-                    //creating each chat object
-                    $resultclass = new stdClass();
-                    //adding sql result array elements as parameters in the resultclass object
-                    $resultclass->room_id = (int) $row[0];
-                    //adding object to the messages_array array
-                    $rooms_array[] = $resultclass;
-                }
-
-                //setting chat parameter as the chat_array array
-                $myObj->rooms = $rooms_array;
-                $myJSON = json_encode($myObj, JSON_PRETTY_PRINT);
-                echo $myJSON;
-
-                //free memory from storing result set
-                $result->free_result();
-            } else {
-                http_response_code(204);
-            }
-        } else {
-            http_response_code(404);
-        }
-    }
-
-    private function messages_to_json($result)
-    {
-        //if there is a result
-        if ($result !== false) {
-            //check if there is more than 1 row
-            if ($result->num_rows > 0) {
-
-                //creates json object
-                $myObj = new stdClass();
-                //creates chat array
-                $chat_array = array();
-
-                while ($row = $result->fetch_row()) {
-                    //creating each chat object
-                    $resultclass = new stdClass();
-                    //adding sql result array elements as parameters in the resultclass object
-                    $resultclass->message_id = (int) $row[0];
-                    $resultclass->room_id = $row[1];
-                    $resultclass->message_sender = $row[2];
-                    $resultclass->sender_name = $row[3];
-                    $resultclass->contents = $row[4];
-                    $resultclass->message_timestamp = $row[5];
-                    //adding object to the messages_array array
-                    $chat_array[] = $resultclass;
-                }
-
-                //setting chat parameter as the chat_array array
-                $myObj->messages = $chat_array;
-                $myJSON = json_encode($myObj, JSON_PRETTY_PRINT);
-                echo $myJSON;
-
-                //free memory from storing result set
-                $result->free_result();
-            } else {
-                http_response_code(204);
-            }
-        } else {
-            http_response_code(404);
-        }
-    }
-
-    private function sr_result_to_json($result)
-    {
-        //if there is a result
-        if ($result !== false) {
-            //check if there is more than 1 row
-            if ($result->num_rows > 0) {
-
-                //creates json object
-                $myObj = new stdClass();
-                //creates chat array
-                $chat_array = array();
-
-                while ($row = $result->fetch_row()) {
-                    //creating each chat object
-                    $resultclass = new stdClass();
-                    //adding sql result array elements as parameters in the resultclass object
-                    $resultclass->id = (int) $row[0];
-                    $resultclass->sender = $row[1];
-                    $resultclass->receiver = $row[2];
-                    $resultclass->content = $row[3];
-                    $resultclass->timestamp = $row[4];
-                    $resultclass->type = $row[5];
-                    //adding object to the messages_array array
-                    $chat_array[] = $resultclass;
-                }
-
-                //setting chat parameter as the chat_array array
-                $myObj->chat = $chat_array;
-                $myJSON = json_encode($myObj, JSON_PRETTY_PRINT);
-                echo $myJSON;
-
-                //free memory from storing result set
-                $result->free_result();
-            } else {
-                http_response_code(204);
-            }
-        } else {
-            http_response_code(404);
-        }
-    }
-
-    private function room_name_to_json($result)
-    {
-        //if there is a result
-        if ($result !== false) {
-            //check if there is more than 1 row
-            if ($result->num_rows > 0) {
-
-                //creates json object
-                $myObj = new stdClass();
-                //creates chat array
-                $name_array = array();
-
-                while ($row = $result->fetch_row()) {
-                    //creating each chat object
-                    $resultclass = new stdClass();
-                    //adding sql result array elements as parameters in the resultclass object
-                    $resultclass->room_name = $row[0];
-                    //adding object to the messages_array array
-                    $name_array[] = $resultclass;
-                }
-
-                //setting chat parameter as the chat_array array
-                $myObj->room_name = $name_array;
-                $myJSON = json_encode($myObj, JSON_PRETTY_PRINT);
-                echo $myJSON;
-
-                //free memory from storing result set
-                $result->free_result();
-            } else {
-                http_response_code(204);
-            }
-        } else {
-            http_response_code(404);
-        }
-    }
-
-
-
-    //send message
-    private function send_message($room_id, $message_from, $message, $mysqli)
-    {
-        $message = trim($message);
-        $stmt = $mysqli->prepare(
-            "INSERT INTO messages 
-        (room_id, message_sender, contents)
-        VALUES (?, ?, ?)"
+        $stmt = $this->mysqli->prepare(
+            "SELECT m.message_id, m.room_id, m.message_sender,
+                    CONCAT(u.fname, ' ', u.lname) AS sender_name,
+                    m.contents, m.message_timestamp
+            FROM messages m
+            JOIN users u ON m.message_sender = u.user_id
+            WHERE m.room_id = ?
+            ORDER BY m.message_timestamp ASC"
         );
 
-        if (!$stmt) {
+        $stmt->bind_param("i", $room_id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+
+        $this->output_json("messages", $result);
+    }
+
+    private function get_user_rooms($user_id)
+    {
+        $stmt = $this->mysqli->prepare(
+            "SELECT room_id FROM room_members WHERE user_id = ?"
+        );
+
+        $stmt->bind_param("i", $user_id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+
+        $this->output_json("rooms", $result);
+    }
+
+    private function get_room_name($room_id)
+    {
+        $stmt = $this->mysqli->prepare(
+            "SELECT room_name FROM chat_rooms WHERE room_id = ?"
+        );
+
+        $stmt->bind_param("i", $room_id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+
+        $this->output_json("room_name", $result);
+    }
+
+    private function get_users()
+    {
+        $result = $this->mysqli->query(
+            "SELECT user_id, fname, lname FROM users"
+        );
+
+        $this->output_json("users", $result);
+    }
+
+    private function get_user_name($user_id)
+    {
+        $stmt = $this->mysqli->prepare(
+            "SELECT fname, lname FROM users WHERE user_id = ?"
+        );
+
+        $stmt->bind_param("i", $user_id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+
+        $this->output_json("name", $result);
+    }
+
+    private function create_room($name, $creator, $users)
+    {
+        $this->mysqli->begin_transaction();
+
+        try {
+            // Create room
+            $stmt = $this->mysqli->prepare(
+                "INSERT INTO chat_rooms (room_name, room_creator)
+                VALUES (?, ?)"
+            );
+            $stmt->bind_param("ss", $name, $creator);
+            $stmt->execute();
+
+            $room_id = $this->mysqli->insert_id;
+
+            // Add users
+            if (!is_array($users)) {
+                $users = explode(",", $users);
+            }
+
+            $stmt = $this->mysqli->prepare(
+                "INSERT INTO room_members (room_id, user_id)
+                VALUES (?, ?)"
+            );
+
+            foreach ($users as $user) {
+                $user = (int) $user;
+                $stmt->bind_param("ii", $room_id, $user);
+                $stmt->execute();
+            }
+
+            // System message
+            $msg = "**CHAT CREATED BY USER $creator**";
+
+            $stmt = $this->mysqli->prepare(
+                "INSERT INTO messages (room_id, message_sender, contents)
+                VALUES (?, ?, ?)"
+            );
+            $stmt->bind_param("iis", $room_id, $creator, $msg);
+            $stmt->execute();
+
+            $this->mysqli->commit();
+
+            echo json_encode(["status" => "success", "room_id" => $room_id]);
+
+        } catch (Exception $e) {
+            $this->mysqli->rollback();
             http_response_code(500);
+            echo json_encode(["error" => $e->getMessage()]);
+        }
+    }
+
+    private function create_user($fname, $lname, $email, $password)
+    {
+        $fname = trim($fname);
+        $lname = trim($lname);
+        $email = strtolower(trim($email));
+        $password = trim($password);
+
+        if (empty($fname) || empty($lname) || empty($email) || empty($password)) {
+            http_response_code(400);
+            echo json_encode(["error" => "Missing user data"]);
             return;
         }
 
-        $stmt->bind_param(
-            "sss",
-            $room_id,
-            $message_from,
-            $message
-        );
-
-        if ($stmt->execute()) {
-            http_response_code(201);
-            echo json_encode(["status" => "success"]);
-        } else {
-            http_response_code(500);
-            echo json_encode(["status" => "error"]);
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            http_response_code(400);
+            echo json_encode(["error" => "Invalid email"]);
+            return;
         }
 
+        // Hash password
+        $hashed_password = password_hash($password, PASSWORD_DEFAULT);
+
+        // Check email exists
+        $stmt = $this->mysqli->prepare("SELECT user_id FROM users WHERE email = ?");
+        $stmt->bind_param("s", $email);
+        $stmt->execute();
+        $stmt->store_result();
+
+        if ($stmt->num_rows > 0) {
+            http_response_code(409);
+            echo json_encode(["error" => "Email already exists"]);
+            $stmt->close();
+            return;
+        }
         $stmt->close();
-    }
 
-    //send message
-    private function send_audio($message_to, $message_from, $audio_path, $mysqli)
-    {
-        $stmt = $mysqli->prepare(
-            "INSERT INTO dm_audio 
-        (dm_audio_sender, dm_audio_receiver, dm_audio_audio)
-        VALUES (?, ?, ?)"
+        // Insert user
+        $stmt = $this->mysqli->prepare(
+            "INSERT INTO users (fname, lname, email, password)
+         VALUES (?, ?, ?, ?)"
         );
 
-        if (!$stmt) {
-            http_response_code(500);
-            echo json_encode(["status" => "db error"]);
-            return;
-        }
-
-        $stmt->bind_param(
-            "sss",
-            $message_from,
-            $message_to,
-            $audio_path
-        );
+        $stmt->bind_param("ssss", $fname, $lname, $email, $hashed_password);
 
         if ($stmt->execute()) {
-            http_response_code(201);
             echo json_encode([
                 "status" => "success",
-                "path" => $audio_path
+                "user_id" => $this->mysqli->insert_id
             ]);
         } else {
             http_response_code(500);
-            echo json_encode(["status" => "insert failed"]);
+            echo json_encode(["error" => "User creation failed"]);
         }
 
         $stmt->close();
     }
 
+    private function login_user($email, $password)
+    {
+        $email = strtolower(trim($email));
+        $password = trim($password);
 
+        if (empty($email) || empty($password)) {
+            http_response_code(400);
+            echo json_encode(["error" => "Missing credentials"]);
+            return;
+        }
 
+        $stmt = $this->mysqli->prepare(
+            "SELECT user_id, fname, lname, password 
+         FROM users 
+         WHERE email = ?"
+        );
 
+        $stmt->bind_param("s", $email);
+        $stmt->execute();
+        $result = $stmt->get_result();
 
+        if ($result->num_rows === 0) {
+            http_response_code(401);
+            echo json_encode(["error" => "Invalid credentials"]);
+            return;
+        }
 
+        $user = $result->fetch_assoc();
 
+        // Verify password
+        if (!password_verify($password, $user['password'])) {
+            http_response_code(401);
+            echo json_encode(["error" => "Invalid credentials"]);
+            return;
+        }
+
+        // SUCCESS
+        echo json_encode([
+            "status" => "success",
+            "user" => [
+                "user_id" => $user["user_id"],
+                "fname" => $user["fname"],
+                "lname" => $user["lname"]
+            ]
+        ]);
+
+        $stmt->close();
+    }
+
+    // ========================= HELPER =========================
+    private function output_json($key, $result)
+    {
+        if (!$result || $result->num_rows === 0) {
+            http_response_code(204);
+            return;
+        }
+
+        $data = [];
+        while ($row = $result->fetch_assoc()) {
+            $data[] = $row;
+        }
+
+        echo json_encode([$key => $data], JSON_PRETTY_PRINT);
+    }
 }
 
-$soundshare_api = new MyAPI();
+new MyAPI();

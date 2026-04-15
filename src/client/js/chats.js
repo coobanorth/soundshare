@@ -2,23 +2,18 @@ import { init_audio_recorder } from "./audiorecord.js";
 import { init_new_room} from "./createroom.js";
 
 window.addEventListener('load', function () {
-    let user_id = null;
+
+    let user_id = localStorage.getItem("user_id");
+
+    if (!user_id) {
+        window.location.href = "index.html"; // your login/signup page
+        return;
+    }
 
     const js_display_id = document.getElementById("display_id");
     js_display_id.textContent = "User ID: " + user_id;
 
-});
-
-document.getElementById("uid_form").addEventListener("submit", function (event) {
-    event.preventDefault();
-
-    let user_id = document.getElementById("uid").value;
-    window.user_id = user_id;
-
-    document.getElementById("display_id").textContent = user_id;
-
     render_chat_ui();
-
     load_rooms(user_id);
     init_new_room(user_id);
 });
@@ -356,3 +351,13 @@ function render_chat_ui() {
     conversationContainer.appendChild(chatDiv);
     conversationContainer.appendChild(messageBox);
 }
+
+document.getElementById("logout").onclick = () => {
+
+    // Clear stored user data
+    localStorage.removeItem("user_id");
+    localStorage.removeItem("user_name");
+
+    // Redirect to login/home page
+    window.location.href = "index.html";
+};
