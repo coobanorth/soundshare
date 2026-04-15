@@ -90,7 +90,14 @@ main {
     max-width: 110em;
     margin: 0 auto;
     display: grid;
-    grid-template-columns: 3fr 6fr;
+
+    grid-template-columns: 1fr;
+}
+
+@media (min-width: 768px) {
+    #wrapper {
+        grid-template-columns: 3fr 6fr;
+    }
 }
 /* element CSS ------------------------------------------*/
 html {
@@ -103,6 +110,7 @@ html {
 
 h1{
     font-weight: 700;
+    font-size: 1.5rem;
 }
 
 body{
@@ -111,25 +119,29 @@ body{
     font-family: "Kodchasan", sans-serif;
     font-weight: 400;
     font-style: normal;
+    margin: 0;
+    overflow-x: hidden;
 }
 
-input[type="text"] {
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 6px;
-    color: black;
-}
-
-input[type="submit"] {
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 6px;
-    color: black;
-}
-
+input[type="text"],
+input[type="submit"],
 button {
-    padding: 10px;
+    padding: 12px;
     border: 1px solid #ccc;
     border-radius: 6px;
     color: black;
+
+
+    width: 100%;
+    font-size: 16px;
+}
+
+.banner,
+.navbar,
+main {
+    padding: 10px;
+}
+
+#wrapper {
+    min-height: 100vh;
 }

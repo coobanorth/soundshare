@@ -1,7 +1,25 @@
 #wrapper {
+    display: grid;
+
+    grid-template-columns: 1fr; /* mobile = single column */
+
     grid-template-areas:
-        "banner banner"
-        "nav nav"
-        "main main"
-    ;
+        "banner"
+        "nav"
+        "main";
+}
+
+@media (min-width: 768px) {
+    #wrapper {
+        grid-template-columns: 250px 1fr;
+
+        grid-template-areas:
+            "banner banner"
+            "nav main";
+    }
+}
+
+.navbar {
+    overflow-x: auto;
+    white-space: nowrap;
 }

@@ -1,5 +1,12 @@
 import { init_audio_recorder } from "./audiorecord.js";
-import { init_new_room} from "./createroom.js";
+import { init_new_room } from "./createroom.js";
+
+let message_polling = null;
+let input_initialized_room = null;
+
+window.addEventListener("beforeunload", () => {
+    if (message_polling) clearInterval(message_polling);
+});
 
 window.addEventListener('load', function () {
 
@@ -95,7 +102,6 @@ async function messages_in_a_room(user_id, room_id) {
         chatBox.innerHTML = "";
 
         const messageBox = document.getElementById("message_box");
-        messageBox.innerHTML = "";
 
         for (const item of obj.messages) {
 
@@ -116,7 +122,7 @@ async function messages_in_a_room(user_id, room_id) {
             }
 
             if (item.contents.startsWith("uploads/audio")) {
-                // audio message
+
                 const audio = document.createElement("audio");
                 audio.controls = true;
 
@@ -128,20 +134,35 @@ async function messages_in_a_room(user_id, room_id) {
                 message_box.appendChild(audio);
 
             } else {
-                // text message
+
                 const text = document.createElement("p");
                 text.textContent = item.contents;
                 message_box.appendChild(text);
             }
 
-            next_message.appendChild(message_box)
+            next_message.appendChild(message_box);
             chatBox.appendChild(next_message);
         }
 
-        user_sending_message(user_id, room_id, messageBox);
+        if (input_initialized_room !== room_id) {
+            user_sending_message(user_id, room_id, messageBox);
+            input_initialized_room = room_id;
+        }
 
-        // scroll to newest message
         chatBox.scrollTop = chatBox.scrollHeight;
+
+        // =========================
+        //AUTO REFRESH 
+        // =========================
+        let current_room_id = room_id;
+
+        if (message_polling) {
+            clearInterval(message_polling);
+        }
+
+        message_polling = setInterval(() => {
+            messages_in_a_room(user_id, current_room_id);
+        }, 1000);
 
     } catch (error) {
         console.log(error);
@@ -180,10 +201,17 @@ function user_sending_message(user_id, room_id, messageBox) {
 
     // Add click event
     button.addEventListener("click", () => {
-        const message = input.value;
+        const message = input.value.trim();
+
+        if (message === "") return;
+
         send_message(room_id, user_id, message);
+
+        input.value = "";
+        button.disabled = true;
     });
 
+    
     rec_button.addEventListener("click", () => {
         init_audio_recorder(user_id, room_id);
     });

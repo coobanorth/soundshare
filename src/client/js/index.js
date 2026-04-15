@@ -1,6 +1,6 @@
 window.addEventListener("load", () => {
     if (localStorage.getItem("user_id")) {
-        window.location.href = "chat.html";
+        window.location.href = "chats.html";
     }
 });
 
@@ -13,10 +13,10 @@ window.addEventListener('load', function () {
             <div class="modal-content">
                 <h3>Sign Up</h3>
 
-                <input type="text" id="fname" placeholder="First Name" />
-                <input type="text" id="lname" placeholder="Last Name" />
-                <input type="email" id="email" placeholder="Email" />
-                <input type="password" id="password" placeholder="Password" />
+                <input type="text" id="fname" placeholder="First Name" class="form-control"/>
+                <input type="text" id="lname" placeholder="Last Name" class="form-control"/>
+                <input type="email" id="email" placeholder="Email" class="form-control"/>
+                <input type="password" id="password" placeholder="Password" class="form-control"/>
 
                 <button id="create_user_btn">Sign Up!</button>
                 <button id="close_modal">Cancel</button>
@@ -27,8 +27,8 @@ window.addEventListener('load', function () {
         <div class="modal-content">
             <h3>Login</h3>
 
-            <input type="email" id="login_email" placeholder="Email" />
-            <input type="password" id="login_password" placeholder="Password" />
+            <input type="email" id="login_email" placeholder="Email" class="form-control"/>
+            <input type="password" id="login_password" placeholder="Password" class="form-control"/>
 
             <button id="login_btn">Login</button>
             <button id="close_login_modal">Cancel</button>
@@ -112,7 +112,7 @@ window.addEventListener('load', function () {
                 localStorage.setItem("user_name", fname + " " + lname);
 
                 // optional redirect
-                window.location.href = "chat.html";
+                window.location.href = "chats.html";
 
             } else {
                 alert(data.error || "Signup failed");
