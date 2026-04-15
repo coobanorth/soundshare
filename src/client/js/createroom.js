@@ -1,4 +1,7 @@
 import { load_rooms } from "./chats.js";
+import { new_chat } from "./chats.js";
+
+let selected_users = [];
 
 export function init_new_room(user_id) {
 
@@ -46,16 +49,17 @@ export function init_new_room(user_id) {
 
         const room_name = document.getElementById("room_name").value.trim();
 
-        const selectedUsers = Array.from(
-            document.querySelectorAll("#user_list input:checked")
-        ).map(cb => cb.value);
+        const selectedUsers = selected_users.map(u => u.user_id);
 
         if (room_name === "" || selectedUsers.length === 0) {
             alert("Enter room name and select users");
             return;
         }
 
-        selectedUsers.push(user_id);
+        // add yourself
+        if (!selectedUsers.includes(user_id)) {
+            selectedUsers.push(user_id);
+        }
 
         const formData = new FormData();
         formData.append("action", "create_room");
@@ -85,32 +89,123 @@ export function init_new_room(user_id) {
             console.log(error);
         }
 
+        // reset after creation
+        selected_users = []; // ✅ important
         modal.classList.add("hidden");
         document.getElementById("room_name").value = "";
     };
 
     // LOAD USERS INTO MODAL
     async function load_users_into_modal() {
-        const res = await fetch("https://cn483.brighton.domains/soundshare/src/server/api.php?get_users=1");
-        const obj = await res.json();
 
         const userList = document.getElementById("user_list");
         userList.innerHTML = "";
 
-        obj.users.forEach(user => {
-            const div = document.createElement("div");
+        // 🔍 Search input
+        const input = document.createElement("input");
+        input.type = "text";
+        input.placeholder = "Enter User ID...";
 
-            const checkbox = document.createElement("input");
-            checkbox.type = "checkbox";
-            checkbox.value = user.user_id;
+        const button = document.createElement("button");
+        button.textContent = "Search";
 
-            const label = document.createElement("label");
-            label.textContent = user.fname + " " + user.lname;
+        userList.appendChild(input);
+        userList.appendChild(button);
 
-            div.appendChild(checkbox);
-            div.appendChild(label);
+        // 📦 Search results
+        const resultsDiv = document.createElement("div");
+        userList.appendChild(resultsDiv);
 
-            userList.appendChild(div);
+        // 📋 Selected users list
+        const selectedDiv = document.createElement("div");
+        selectedDiv.id = "selected_users";
+        selectedDiv.innerHTML = "<h4>Selected Users:</h4>";
+
+        userList.appendChild(selectedDiv);
+
+        // 🔎 Search click
+        button.addEventListener("click", async () => {
+
+            const searchValue = input.value.trim();
+            if (!searchValue) return;
+
+            resultsDiv.innerHTML = "Searching...";
+
+            try {
+                const res = await fetch(
+                    `https://cn483.brighton.domains/soundshare/src/server/api.php?userid-name=${searchValue}`
+                );
+
+                const obj = await res.json();
+
+                resultsDiv.innerHTML = "";
+
+                if (!obj.name || obj.name.length === 0) {
+                    resultsDiv.textContent = "No user found";
+                    return;
+                }
+
+                const user = obj.name[0];
+
+                const div = document.createElement("div");
+
+                const name = document.createElement("p");
+                name.textContent = `${user.fname} ${user.lname} (ID: ${searchValue})`;
+
+                const addBtn = document.createElement("button");
+                addBtn.textContent = "Add";
+
+                addBtn.addEventListener("click", () => {
+
+                    // 🚫 prevent duplicates
+                    if (selected_users.some(u => u.user_id === searchValue)) return;
+
+                    selected_users.push({
+                        user_id: searchValue,
+                        fname: user.fname,
+                        lname: user.lname
+                    });
+
+                    render_selected_users(selectedDiv);
+                    input.value = "";
+                });
+
+                div.appendChild(name);
+                div.appendChild(addBtn);
+
+                resultsDiv.appendChild(div);
+
+            } catch (err) {
+                console.log(err);
+                resultsDiv.textContent = "Error searching user";
+            }
         });
     }
+}
+
+function render_selected_users(container) {
+
+    // keep title
+    container.innerHTML = "<h4>Selected Users:</h4>";
+
+    selected_users.forEach(user => {
+
+        const div = document.createElement("div");
+
+        const text = document.createElement("span");
+        text.textContent = `${user.fname} ${user.lname} (ID: ${user.user_id})`;
+
+        const removeBtn = document.createElement("button");
+        removeBtn.textContent = "Remove";
+
+        removeBtn.addEventListener("click", () => {
+            selected_users = selected_users.filter(u => u.user_id !== user.user_id);
+            render_selected_users(container);
+        });
+
+        div.appendChild(text);
+        div.appendChild(removeBtn);
+
+        container.appendChild(div);
+    });
 }

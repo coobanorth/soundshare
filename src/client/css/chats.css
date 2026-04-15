@@ -39,6 +39,7 @@
         grid-template-areas:
             "banner banner"
             "nav nav"
+            "main main"
             "new_room new_room"
             "chat_list conversation";
     }

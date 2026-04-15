@@ -36,14 +36,14 @@
 }
 
 .modal-content input {
-    width: 100%;
+    max-width: 100%;
     padding: 12px;
     margin-bottom: 10px;
     font-size: 16px; /* prevents zoom on iPhone */
 }
 
 .modal-content button {
-    width: 100%;
+    max-width: 100%;
     margin-bottom: 10px;
 }
 

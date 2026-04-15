@@ -1,8 +1,9 @@
 import { init_audio_recorder } from "./audiorecord.js";
 import { init_new_room } from "./createroom.js";
 
+let current_room_id = null;
 let message_polling = null;
-let input_initialized_room = null;
+let last_message_id = 0;
 
 window.addEventListener("beforeunload", () => {
     if (message_polling) clearInterval(message_polling);
@@ -13,19 +14,18 @@ window.addEventListener('load', function () {
     let user_id = localStorage.getItem("user_id");
 
     if (!user_id) {
-        window.location.href = "index.html"; // your login/signup page
+        window.location.href = "index.html";
         return;
     }
 
     const js_display_id = document.getElementById("display_id");
-    js_display_id.textContent = "User ID: " + user_id;
+    js_display_id.textContent = "Welcome " + localStorage.getItem("user_name") + " || UID#" + user_id;
 
     render_chat_ui();
     load_rooms(user_id);
     init_new_room(user_id);
 });
 
-// GETS THE ROOMS THAT THE USER IS IN
 export async function load_rooms(user_id) {
     const url = `https://cn483.brighton.domains/soundshare/src/server/api.php?user_room=${user_id}`;
 
@@ -41,17 +41,14 @@ export async function load_rooms(user_id) {
     }
 };
 
-//OUTPUTS THE ROOMS THAT THE USER IS IN ON WEBB PAGE
 async function display_rooms(user_id, obj) {
-    // Clear existing list (important if reloading)
+
     const chatList = document.getElementById("chat_list");
     chatList.innerHTML = "";
 
-    const unique_rooms = new Set();
-
     for (const item of obj.rooms) {
+
         const room_id = item.room_id;
-        unique_rooms.add(room_id);
 
         const name = await get_room_name(room_id);
 
@@ -95,15 +92,34 @@ async function messages_in_a_room(user_id, room_id) {
     const url = `https://cn483.brighton.domains/soundshare/src/server/api.php?room=${room_id}`;
 
     try {
+
         const response = await fetch(url);
         const obj = await response.json();
 
         const chatBox = document.getElementById("chat");
-        chatBox.innerHTML = "";
-
         const messageBox = document.getElementById("message_box");
 
+        const switching_room = current_room_id !== room_id;
+
+        if (switching_room) {
+            chatBox.innerHTML = "";
+            messageBox.innerHTML = "";
+            last_message_id = 0; // FIX: reset message tracking
+        }
+
+        current_room_id = room_id;
+
+        // clear old polling safely
+        if (message_polling) {
+            clearInterval(message_polling);
+            message_polling = null;
+        }
+
         for (const item of obj.messages) {
+
+            if (!switching_room && item.message_id <= last_message_id) {
+                continue;
+            }
 
             const next_message = document.createElement("div");
 
@@ -128,7 +144,7 @@ async function messages_in_a_room(user_id, room_id) {
 
                 const source = document.createElement("source");
                 source.src = `https://cn483.brighton.domains/soundshare/src/server/${item.contents}`;
-                source.type = "audio/mpeg";
+                source.type = "audio/webm"; // FIXED
 
                 audio.appendChild(source);
                 message_box.appendChild(audio);
@@ -142,27 +158,19 @@ async function messages_in_a_room(user_id, room_id) {
 
             next_message.appendChild(message_box);
             chatBox.appendChild(next_message);
+
+            last_message_id = item.message_id;
         }
 
-        if (input_initialized_room !== room_id) {
+        // ensure input only rendered once per room switch
+        if (switching_room) {
+            messageBox.innerHTML = "";
             user_sending_message(user_id, room_id, messageBox);
-            input_initialized_room = room_id;
-        }
-
-        chatBox.scrollTop = chatBox.scrollHeight;
-
-        // =========================
-        //AUTO REFRESH 
-        // =========================
-        let current_room_id = room_id;
-
-        if (message_polling) {
-            clearInterval(message_polling);
         }
 
         message_polling = setInterval(() => {
-            messages_in_a_room(user_id, current_room_id);
-        }, 1000);
+            messages_in_a_room(user_id, room_id);
+        }, 2000);
 
     } catch (error) {
         console.log(error);
@@ -170,36 +178,29 @@ async function messages_in_a_room(user_id, room_id) {
 }
 
 function user_sending_message(user_id, room_id, messageBox) {
-    // Create input
+
     const input = document.createElement("input");
     input.type = "text";
     input.id = "message_input";
     input.placeholder = "Type a message...";
 
-    // Create button
     const button = document.createElement("button");
     button.id = "send_button";
     button.textContent = "Send";
 
-    // Create audio record button
     const rec_button = document.createElement("button");
     rec_button.id = "rec_audio_toggle";
     rec_button.textContent = "Record Audio";
 
-
-    // Add elements to message box
     messageBox.appendChild(input);
     messageBox.appendChild(button);
     messageBox.appendChild(rec_button);
 
-    const check_input = document.getElementById("message_input");
-    const check_button = document.getElementById("send_button");
-
-    check_input.addEventListener("input", function () {
-        check_button.disabled = input.value.trim() === "";
+    // FIX: use direct references (no redundant DOM lookup)
+    input.addEventListener("input", function () {
+        button.disabled = input.value.trim() === "";
     });
 
-    // Add click event
     button.addEventListener("click", () => {
         const message = input.value.trim();
 
@@ -211,20 +212,16 @@ function user_sending_message(user_id, room_id, messageBox) {
         button.disabled = true;
     });
 
-    
     rec_button.addEventListener("click", () => {
         init_audio_recorder(user_id, room_id);
     });
-
 }
 
-//send message method
 async function send_message(room_id, user_id, message) {
-    const message_from = user_id;
 
     const formData = new FormData();
     formData.append("room_id", room_id);
-    formData.append("message_from", message_from);
+    formData.append("message_from", user_id);
     formData.append("message", message);
 
     try {
@@ -241,6 +238,7 @@ async function send_message(room_id, user_id, message) {
         } else {
             console.log("Message sent");
         }
+
         messages_in_a_room(user_id, room_id);
 
     } catch (error) {
@@ -248,7 +246,6 @@ async function send_message(room_id, user_id, message) {
     }
 }
 
-//upload audio
 export async function upload_audio(blob, user_id, room_id) {
 
     const formData = new FormData();
@@ -285,8 +282,8 @@ export async function upload_audio(blob, user_id, room_id) {
     }
 }
 
-//new chat
-async function new_chat(nc_uid, user_id) {
+// FIXED: missing user_id parameter
+export async function new_chat(nc_uid, user_id) {
     const nc_div = document.querySelector(".new_chat");
 
     const messageBox = document.createElement("div");
@@ -299,57 +296,9 @@ async function new_chat(nc_uid, user_id) {
     user_sending_message(user_id, nc_uid, messageBox);
 }
 
-function render_new_chat_form() {
-    const container = document.querySelector(".new_chat");
-
-    container.innerHTML = "";
-
-
-    const title = document.createElement("h3");
-    title.textContent = "New Chat";
-
-
-    const form = document.createElement("form");
-    form.id = "new_chat_form";
-
-    const label = document.createElement("label");
-    label.setAttribute("for", "nc_uid");
-    label.textContent = "Enter the ID of the person you want to start a chat with:";
-
-
-    const input = document.createElement("input");
-    input.type = "text";
-    input.id = "nc_uid";
-    input.name = "nc_uid";
-
-
-    const submit = document.createElement("input");
-    submit.type = "submit";
-    submit.value = "Submit";
-    submit.id = "nc_uid_submit";
-
-
-    form.appendChild(label);
-    form.appendChild(input);
-    form.appendChild(submit);
-
-    container.appendChild(title);
-    container.appendChild(form);
-
-    form.addEventListener("submit", function (event) {
-        event.preventDefault();
-
-        const nc_uid = document.getElementById("nc_uid").value;
-        console.log("New chat with:", nc_uid);
-
-        new_chat(nc_uid);
-    });
-}
-
 function render_chat_ui() {
-    //chat list
-    const chatListContainer = document.querySelector(".chat_list");
 
+    const chatListContainer = document.querySelector(".chat_list");
     chatListContainer.innerHTML = "";
 
     const chatListTitle = document.createElement("h3");
@@ -361,9 +310,7 @@ function render_chat_ui() {
     chatListContainer.appendChild(chatListTitle);
     chatListContainer.appendChild(chatListDiv);
 
-    //conversation
     const conversationContainer = document.querySelector(".conversation");
-
     conversationContainer.innerHTML = "";
 
     const conversationTitle = document.createElement("h3");
@@ -382,10 +329,8 @@ function render_chat_ui() {
 
 document.getElementById("logout").onclick = () => {
 
-    // Clear stored user data
     localStorage.removeItem("user_id");
     localStorage.removeItem("user_name");
 
-    // Redirect to login/home page
     window.location.href = "index.html";
 };

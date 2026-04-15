@@ -15,7 +15,8 @@
 
         grid-template-areas:
             "banner banner"
-            "nav main";
+            "nav nav"
+            "main main"
     }
 }
 
