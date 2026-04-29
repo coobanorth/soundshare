@@ -313,7 +313,7 @@ class MyAPI
         // Insert user
         $stmt = $this->mysqli->prepare(
             "INSERT INTO users (fname, lname, email, password)
-         VALUES (?, ?, ?, ?)"
+            VALUES (?, ?, ?, ?)"
         );
 
         $stmt->bind_param("ssss", $fname, $lname, $email, $hashed_password);

@@ -90,7 +90,7 @@ export function init_new_room(user_id) {
         }
 
         // reset after creation
-        selected_users = []; // ✅ important
+        selected_users = []; 
         modal.classList.add("hidden");
         document.getElementById("room_name").value = "";
     };
@@ -101,7 +101,7 @@ export function init_new_room(user_id) {
         const userList = document.getElementById("user_list");
         userList.innerHTML = "";
 
-        // 🔍 Search input
+        // Search input
         const input = document.createElement("input");
         input.type = "text";
         input.placeholder = "Enter User ID...";
@@ -112,18 +112,17 @@ export function init_new_room(user_id) {
         userList.appendChild(input);
         userList.appendChild(button);
 
-        // 📦 Search results
+        // Search results
         const resultsDiv = document.createElement("div");
         userList.appendChild(resultsDiv);
 
-        // 📋 Selected users list
+        // Selected users list
         const selectedDiv = document.createElement("div");
         selectedDiv.id = "selected_users";
         selectedDiv.innerHTML = "<h4>Selected Users:</h4>";
 
         userList.appendChild(selectedDiv);
 
-        // 🔎 Search click
         button.addEventListener("click", async () => {
 
             const searchValue = input.value.trim();
@@ -157,7 +156,7 @@ export function init_new_room(user_id) {
 
                 addBtn.addEventListener("click", () => {
 
-                    // 🚫 prevent duplicates
+                    // prevent duplicates
                     if (selected_users.some(u => u.user_id === searchValue)) return;
 
                     selected_users.push({

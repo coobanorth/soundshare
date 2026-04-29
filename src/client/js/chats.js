@@ -144,7 +144,7 @@ async function messages_in_a_room(user_id, room_id) {
 
                 const source = document.createElement("source");
                 source.src = `https://cn483.brighton.domains/soundshare/src/server/${item.contents}`;
-                source.type = "audio/webm"; // FIXED
+                source.type = "audio/webm";
 
                 audio.appendChild(source);
                 message_box.appendChild(audio);
@@ -196,7 +196,6 @@ function user_sending_message(user_id, room_id, messageBox) {
     messageBox.appendChild(button);
     messageBox.appendChild(rec_button);
 
-    // FIX: use direct references (no redundant DOM lookup)
     input.addEventListener("input", function () {
         button.disabled = input.value.trim() === "";
     });
@@ -282,7 +281,6 @@ export async function upload_audio(blob, user_id, room_id) {
     }
 }
 
-// FIXED: missing user_id parameter
 export async function new_chat(nc_uid, user_id) {
     const nc_div = document.querySelector(".new_chat");
 
