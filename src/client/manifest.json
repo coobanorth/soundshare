@@ -1,0 +1,15 @@
+{
+    "name": "SoundShare",
+    "short_name": "SoundShare",
+    "start_url": ".",
+    "display": "standalone",
+    "orientation": "portrait",
+    "description": "SoundShare",
+    "icons": [
+        {
+            "src": "./assets/soundshare_logo.png",
+            "sizes": "48x48",
+            "type": "image/png"
+        }
+    ]
+}
