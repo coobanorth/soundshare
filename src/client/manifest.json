@@ -8,7 +8,7 @@
     "icons": [
         {
             "src": "./assets/soundshare_logo.png",
-            "sizes": "48x48",
+            "sizes": "500x500",
             "type": "image/png"
         }
     ]
