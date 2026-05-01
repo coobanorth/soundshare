@@ -30,7 +30,6 @@ export function init_audio_recorder(current_user, current_room) {
 }
 
 function record_audio(current_user, current_room) {
-  // Set up basic variables for app
   const record = document.querySelector(".record");
   const stop = document.querySelector(".stop");
   const soundClips = document.querySelector(".sound-clips");
@@ -41,11 +40,10 @@ function record_audio(current_user, current_room) {
   // Disable stop button while not recording
   stop.disabled = true;
 
-  // Visualiser setup - create web audio api context and canvas
+  // Visualiser setup 
   let audioCtx;
   const canvasCtx = canvas.getContext("2d");
 
-  // Main block for doing the audio recording
   if (navigator.mediaDevices.getUserMedia) {
     console.log("The mediaDevices.getUserMedia() method is supported.");
 

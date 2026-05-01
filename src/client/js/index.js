@@ -119,7 +119,7 @@ window.addEventListener('load', function () {
                 localStorage.setItem("user_id", data.user_id);
                 localStorage.setItem("user_name", fname + " " + lname);
 
-                // optional redirect
+                //redirect
                 window.location.href = "chats.html";
 
             } else {

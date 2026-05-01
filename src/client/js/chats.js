@@ -104,12 +104,12 @@ async function messages_in_a_room(user_id, room_id) {
         if (switching_room) {
             chatBox.innerHTML = "";
             messageBox.innerHTML = "";
-            last_message_id = 0; // FIX: reset message tracking
+            last_message_id = 0;
         }
 
         current_room_id = room_id;
 
-        // clear old polling safely
+        // clear old polling 
         if (message_polling) {
             clearInterval(message_polling);
             message_polling = null;
