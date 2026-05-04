@@ -178,7 +178,6 @@ async function messages_in_a_room(user_id, room_id) {
 }
 
 function user_sending_message(user_id, room_id, messageBox) {
-
     const input = document.createElement("input");
     input.type = "text";
     input.id = "message_input";
@@ -187,31 +186,58 @@ function user_sending_message(user_id, room_id, messageBox) {
     const button = document.createElement("button");
     button.id = "send_button";
     button.textContent = "Send";
+    button.disabled = true; // Start disabled
 
     const rec_button = document.createElement("button");
     rec_button.id = "rec_audio_toggle";
     rec_button.textContent = "Record Audio";
 
+    // Create character counter
+    const charCounter = document.createElement("span");
+    charCounter.id = "char_counter";
+    charCounter.textContent = "0 / 1000";
+    charCounter.style.fontSize = "12px";
+    charCounter.style.marginLeft = "10px";
+
     messageBox.appendChild(input);
     messageBox.appendChild(button);
     messageBox.appendChild(rec_button);
+    messageBox.appendChild(charCounter);
 
+    // INPUT VALIDATION & CHARACTER LIMIT
     input.addEventListener("input", function () {
-        button.disabled = input.value.trim() === "";
+        const length = input.value.length;
+        const isOverLimit = length > 1000;
+        const isEmpty = input.value.trim() === "";
+
+        charCounter.textContent = `${length} / 1000`;
+
+        if (isOverLimit) {
+            charCounter.style.color = "red";
+            input.style.border = "2px solid red";
+            button.disabled = true;
+        } else {
+            charCounter.style.color = "white";
+            input.style.border = "";
+            button.disabled = isEmpty;
+        }
     });
 
+    // SEND TEXT MESSAGE
     button.addEventListener("click", () => {
         const message = input.value.trim();
-
-        if (message === "") return;
+        if (message === "" || message.length > 1000) return;
 
         send_message(room_id, user_id, message);
 
         input.value = "";
         button.disabled = true;
+        charCounter.textContent = "0 / 1000";
     });
 
+    // RECORD AUDIO
     rec_button.addEventListener("click", () => {
+        rec_button.disabled = true;
         init_audio_recorder(user_id, room_id);
     });
 }

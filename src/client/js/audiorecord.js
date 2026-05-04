@@ -1,32 +1,24 @@
 import { upload_audio } from "./chats.js";
 
+// Change this in audiorecord.js
 export function init_audio_recorder(current_user, current_room) {
+  const messageBox = document.getElementById("message_box");
   const btn = document.getElementById("rec_audio_toggle");
 
-  if (!btn) {
-    console.log("rec button not found");
-    return;
-  }
+  // Run the logic immediately instead of adding a listener
+  messageBox.insertAdjacentHTML("beforeend", `
+    <section class="main-controls">
+        <canvas class="visualizer" height="60px"></canvas>
+        <div id="buttons">
+            <button class="record">Record</button>
+            <button class="stop">Stop</button>
+        </div>
+    </section>
+    <section class="sound-clips"></section>
+  `);
 
-  btn.addEventListener("click", () => {
-    const messageBox = document.getElementById("message_box");
-
-    messageBox.insertAdjacentHTML("beforeend", `
-      <section class="main-controls">
-          <canvas class="visualizer" height="60px"></canvas>
-          <div id="buttons">
-              <button class="record">Record</button>
-              <button class="stop">Stop</button>
-          </div>
-      </section>
-
-      <section class="sound-clips"></section>
-    `);
-
-    btn.disabled = true;
-
-    record_audio(current_user, current_room);
-  });
+  btn.disabled = true;
+  record_audio(current_user, current_room);
 }
 
 function record_audio(current_user, current_room) {

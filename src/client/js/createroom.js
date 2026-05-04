@@ -34,13 +34,17 @@ export function init_new_room(user_id) {
 
     // CLOSE MODAL
     document.getElementById("close_modal").onclick = () => {
+        selected_users = []; 
         modal.classList.add("hidden");
+        document.getElementById("room_name").value = "";
     };
 
     // CLICK OUTSIDE
     modal.addEventListener("click", (e) => {
         if (e.target === modal) {
+            selected_users = [];
             modal.classList.add("hidden");
+            document.getElementById("room_name").value = "";
         }
     });
 
@@ -90,7 +94,7 @@ export function init_new_room(user_id) {
         }
 
         // reset after creation
-        selected_users = []; 
+        selected_users = [];
         modal.classList.add("hidden");
         document.getElementById("room_name").value = "";
     };
